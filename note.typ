@@ -8,3 +8,5 @@
     cover-image: "/template/assets/coverimage.jpg"
   )
 )
+
+#include "01-Entropy.typ"
