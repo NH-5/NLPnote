@@ -10,3 +10,4 @@
 )
 
 #include "01-Entropy.typ"
+#include "02-FormalLanguageAutomaton.typ"
