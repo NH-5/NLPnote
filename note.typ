@@ -1,4 +1,5 @@
 #import "template/template/conf.typ": conf
+#import "settings.typ": *
 
 #show: conf.with(
   info: (
@@ -9,5 +10,8 @@
   )
 )
 
+#show: setup-math
+
 #include "01-Entropy.typ"
 #include "02-FormalLanguageAutomaton.typ"
+#include "03-HiddenMarkovModel.typ"
