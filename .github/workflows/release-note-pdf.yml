@@ -31,6 +31,13 @@ jobs:
           sudo install -m 0755 ./typst-*/typst /usr/local/bin/typst
           typst --version
 
+      - name: Install fonts for CJK rendering
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk fonts-noto-core fonts-noto-mono fonts-arphic-ukai
+          fc-cache -fv
+          fc-list : family | sort -u | grep -E "AR PL UKai CN|Noto Sans CJK SC|Noto Sans Mono|Noto Serif CJK SC"
+
       - name: Compile naturelanguageprocess.pdf
         run: typst compile note.typ naturelanguageprocess.pdf
 

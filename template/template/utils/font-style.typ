@@ -22,20 +22,19 @@
 
 #let 字体 = (
   // 宋体，属于「有衬线字体」，一般可以等同于英文中的 Serif Font
-  // FZShuSong-Z01S
-  宋体: ("Times New Roman","Songti SC", "STSong"),
+  // 在 CI 中使用跨平台可安装的开源 CJK 字体，避免依赖 macOS / Office 字体。
+  宋体: ("Noto Serif CJK SC"),
 
   // 黑体，属于「无衬线字体」，一般可以等同于英文中的 Sans Serif Font
-  // FZHei-B01S, SimHei
-  黑体: ("Calibri","Heiti SC", "STHeiti"),
+  黑体: ("Noto Sans CJK SC"),
 
   // 等宽字体，用于raw和代码块环境，一般可以等同于英文中的 Monospaced Font
-  等宽: ("Consolas", "Songti SC", "STSong"),
+  等宽: ("Noto Sans Mono", "DejaVu Sans Mono"),
 
   // 楷体，用于注解
-  楷体: ("Times New Roman","Kaiti SC", "STKaiti"),// FZKai-Z03S
-  仿宋: ("Times New Roman","Kaiti SC", "STKaiti"),//FZFangSong-Z02S
+  楷体: ("AR PL UKai CN"),
+  仿宋: ("AR PL UKai CN"),
 
   // 数学公式字体
-  数学: ("New Computer Modern Math","Kaiti SC", "STKaiti")//FZFangSong-Z02S
+  数学: ("New Computer Modern Math")
 )
