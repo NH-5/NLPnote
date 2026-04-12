@@ -31,15 +31,15 @@ jobs:
           sudo install -m 0755 ./typst-*/typst /usr/local/bin/typst
           typst --version
 
-      - name: Compile note.pdf
-        run: typst compile note.typ note.pdf
+      - name: Compile naturelanguageprocess.pdf
+        run: typst compile note.typ naturelanguageprocess.pdf
 
       - name: Create GitHub Release and upload PDF
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release upload "${GITHUB_REF_NAME}" note.pdf --clobber
+            gh release upload "${GITHUB_REF_NAME}" naturelanguageprocess.pdf --clobber
           else
-            gh release create "${GITHUB_REF_NAME}" note.pdf --generate-notes --title "${GITHUB_REF_NAME}"
+            gh release create "${GITHUB_REF_NAME}" naturelanguageprocess.pdf --generate-notes --title "${GITHUB_REF_NAME}"
           fi
