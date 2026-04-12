@@ -15,19 +15,31 @@ concurrency:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    env:
+      TYPST_VERSION: 0.14.2
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Setup Typst
-        uses: typst-community/setup-typst@v4
+      - name: Install Typst
+        run: |
+          curl -fsSL \
+            -o typst.tar.xz \
+            "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz"
+          tar -xJf typst.tar.xz
+          sudo install -m 0755 ./typst-*/typst /usr/local/bin/typst
+          typst --version
 
       - name: Compile note.pdf
         run: typst compile note.typ note.pdf
 
       - name: Create GitHub Release and upload PDF
-        uses: softprops/action-gh-release@v2
-        with:
-          files: note.pdf
-          generate_release_notes: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" note.pdf --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" note.pdf --generate-notes --title "${GITHUB_REF_NAME}"
+          fi
