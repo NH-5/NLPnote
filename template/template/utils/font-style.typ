@@ -32,8 +32,9 @@
   等宽: ("Noto Sans Mono", "DejaVu Sans Mono"),
 
   // 楷体，用于注解
-  楷体: ("AR PL UKai CN"),
-  仿宋: ("AR PL UKai CN"),
+  // Linux runner 上可稳定解析的楷体资源不一致，这里统一回退到已验证可用的 CJK Serif。
+  楷体: ("Noto Serif CJK SC"),
+  仿宋: ("Noto Serif CJK SC"),
 
   // 数学公式字体
   数学: ("New Computer Modern Math")
