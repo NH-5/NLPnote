@@ -1,0 +1,33 @@
+name: Release note.pdf
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Typst
+        uses: typst-community/setup-typst@v4
+
+      - name: Compile note.pdf
+        run: typst compile note.typ note.pdf
+
+      - name: Create GitHub Release and upload PDF
+        uses: softprops/action-gh-release@v2
+        with:
+          files: note.pdf
+          generate_release_notes: true

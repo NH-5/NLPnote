@@ -21,3 +21,18 @@ typst compile note.typ
 ```
 
 生成的 `note.pdf` 已在 `.gitignore` 中忽略。
+
+## Release 发布
+
+仓库已配置 GitHub Actions 自动发布。
+
+- 推送标签 `v*` 时会自动编译 `note.pdf`
+- 工作流会创建同名 GitHub Release
+- `note.pdf` 会作为 Release 附件上传
+
+示例：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
