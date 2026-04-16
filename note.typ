@@ -17,3 +17,4 @@
 #include "03-HiddenMarkovModel.typ"
 #include "04-ConditionalRandomField.typ"
 #include "05-LanguageModel.typ"
+#include "06-Corpus.typ"
