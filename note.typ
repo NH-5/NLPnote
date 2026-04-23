@@ -18,3 +18,4 @@
 #include "04-ConditionalRandomField.typ"
 #include "05-LanguageModel.typ"
 #include "06-Corpus.typ"
+#include "07-LMwithNeuralNetwork.typ"
