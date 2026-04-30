@@ -19,3 +19,4 @@
 #include "05-LanguageModel.typ"
 #include "06-Corpus.typ"
 #include "07-LMwithNeuralNetwork.typ"
+#include "08-InformationRetrieval.typ"

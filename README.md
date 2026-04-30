@@ -9,6 +9,9 @@
 - `03-HiddenMarkovModel.typ`: 隐马尔可夫模型
 - `04-ConditionalRandomField.typ`: 条件随机场
 - `05-LanguageModel.typ`: 语言模型
+- `06-Corpus.typ`: 语料库与语言知识库
+- `07-LMwithNeuralNetwork.typ`: 神经网络语言模型
+- `08-InformationRetrieval.typ`: 信息检索
 - `note.typ`: 总入口文件
 - `template/`: Typst 模板资源
 
