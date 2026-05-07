@@ -12,6 +12,7 @@
 - `06-Corpus.typ`: 语料库与语言知识库
 - `07-LMwithNeuralNetwork.typ`: 神经网络语言模型
 - `08-InformationRetrieval.typ`: 信息检索
+- `09-LexicalAnalysis.typ`: 词法分析
 - `note.typ`: 总入口文件
 - `template/`: Typst 模板资源
 

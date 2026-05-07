@@ -20,3 +20,4 @@
 #include "06-Corpus.typ"
 #include "07-LMwithNeuralNetwork.typ"
 #include "08-InformationRetrieval.typ"
+#include "09-LexicalAnalysis.typ"
