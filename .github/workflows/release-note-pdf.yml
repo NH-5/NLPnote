@@ -39,14 +39,14 @@ jobs:
           fc-list : family | sort -u | grep -E "AR PL UKai CN|Noto Sans CJK SC|Noto Sans Mono|Noto Serif CJK SC"
 
       - name: Compile naturelanguageprocess.pdf
-        run: typst compile note.typ naturelanguageprocess.pdf
+        run: typst compile typst/note.typ NatureLanguageProcess.pdf
 
       - name: Create GitHub Release and upload PDF
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release upload "${GITHUB_REF_NAME}" naturelanguageprocess.pdf --clobber
+            gh release upload "${GITHUB_REF_NAME}" NatureLanguageProcess.pdf --clobber
           else
-            gh release create "${GITHUB_REF_NAME}" naturelanguageprocess.pdf --generate-notes --title "${GITHUB_REF_NAME}"
+            gh release create "${GITHUB_REF_NAME}" NatureLanguageProcess.pdf --generate-notes --title "${GITHUB_REF_NAME}"
           fi
