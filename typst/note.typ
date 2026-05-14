@@ -6,7 +6,7 @@
     title: "自然语言处理",
     author: "NH5",
     data: datetime.today(),
-    cover-image: "/template/assets/coverimage.jpg"
+    cover-image: "/typst/template/assets/coverimage.jpg"
   )
 )
 
@@ -21,3 +21,4 @@
 #include "07-LMwithNeuralNetwork.typ"
 #include "08-InformationRetrieval.typ"
 #include "09-LexicalAnalysis.typ"
+#include "10-SyntaxAnalysis.typ"
