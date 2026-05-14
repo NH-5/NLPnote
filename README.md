@@ -13,6 +13,7 @@
 - `07-LMwithNeuralNetwork.typ`: 神经网络语言模型
 - `08-InformationRetrieval.typ`: 信息检索
 - `09-LexicalAnalysis.typ`: 词法分析
+- `10-SyntaxAnalysis.typ`: 句法分析
 - `note.typ`: 总入口文件
 - `template/`: Typst 模板资源
 
@@ -21,7 +22,7 @@
 需要本地安装 [Typst](https://typst.app/)。
 
 ```bash
-typst compile note.typ
+typst compile typst/note.typ
 ```
 
 生成的 `note.pdf` 已在 `.gitignore` 中忽略。

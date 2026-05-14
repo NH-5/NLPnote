@@ -6,7 +6,7 @@
     title: "自然语言处理",
     author: "NH5",
     data: datetime.today(),
-    cover-image: "/typst/template/assets/coverimage.jpg"
+    cover-image: "/template/assets/coverimage.jpg"
   )
 )
 
