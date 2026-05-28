@@ -184,6 +184,38 @@ The can can hold the water
 
 按规则库来源, 可分为两种基本路线.
 
+#figure(
+  align(center,
+    commutative-diagram(
+      node-padding: (34pt, 22pt),
+      padding: 8pt,
+
+      node((0, 3), [语法规则库], "rules"),
+
+      node((1, 1), [人工编写], "manual-rules"),
+      node((1, 5), [机器学习], "stat-rules"),
+
+      node((2, 1), [CFG 模板], "cfg-template"),
+      node((2, 5), [PCFG 模板], "pcfg-template"),
+
+      node((3, 1), [CYK 等穷举式搜索], "cyk-search"),
+      node((3, 5), [Viterbi / 改进 CYK], "vit-search"),
+
+      node((4, 3), [句法分析树], "tree-out"),
+
+      arr("rules", "manual-rules", []),
+      arr("rules", "stat-rules", []),
+      arr("manual-rules", "cfg-template", []),
+      arr("stat-rules", "pcfg-template", []),
+      arr("cfg-template", "cyk-search", []),
+      arr("pcfg-template", "vit-search", []),
+      arr("cyk-search", "tree-out", []),
+      arr("vit-search", "tree-out", []),
+    )
+  ),
+  caption: [句法结构分析器的两条典型路线]
+)
+
 ==== 基于人工规则的方法
 
 人工规则方法由人手工组织语法规则, 建立语法知识库, 再根据规则穷举式地推导句法分析树.
@@ -219,8 +251,12 @@ The can can hold the water
 标注树库 -> 规则抽取与参数估计 -> 输入句子 -> 动态规划搜索 -> 最优句法树
 ```
 
-这里 PCFG 常作为机器从树库中抽取规则的模板;  
+这里 PCFG 常作为机器从树库中抽取规则的模板;
 Viterbi、改进 CYK 等动态规划算法则用于在多个候选结构中寻找最优结构.
+
+课件中把这种搜索称为启发式搜索:
+它不是盲目枚举所有可能树, 而是用概率或得分引导搜索方向,
+在保留可解释结构的同时尽量减少无效展开.
 
 优点:
 
@@ -566,7 +602,10 @@ CYK 表不仅能判断句子可分析, 还可以通过回溯保留这种句法�
 
 === 从 CFG 到 PCFG
 
-CFG 只回答“某条规则能不能用”, 不能回答“哪条规则更可能”.  
+CFG 只回答“某条规则能不能用”, 不能回答“哪条规则更可能”.
+这也是课件中说“CFG 模型的拟合能力不足”的直接原因:
+它能给出语法硬约束, 但不能刻画真实语料中不同结构的偏好差异.
+
 概率上下文无关文法(probabilistic context-free grammar, PCFG)在 CFG 规则上引入概率参数.
 
 一条规则写作:
@@ -946,6 +985,24 @@ the/B-NP can/I-NP can/O hold/O the/B-NP water/I-NP
   caption: [句子“汤姆在讲话”的简化依存关系]
 )
 
+=== 依存句法理论基础与优势
+
+课件把依存句法理论的基础理解为对“关联”的约束化描述.
+对于一个句子, 依存分析不再先构造一层层短语, 而是直接回答每个词依附于哪个中心词.
+
+这种描述通常隐含几个基本约束:
+
+- 中心性: 句子通常围绕谓词或核心动词组织.
+- 单支配: 除根节点外, 每个词通常只依存于一个支配词.
+- 整体性: 所有词通过依存边连成一个整体结构.
+- 有向性: 每条边都有 head 到 dependent 的方向.
+
+因此依存句法的优势在于:
+
+- 直接刻画词与词之间的语法关系, 便于连接到关系抽取、问答等下游任务.
+- 结构比完整成分树更扁平, 输出更接近“谁修饰谁、谁支配谁”的使用需求.
+- 对词序较自由的语言也比较友好, 因为它重点描述支配关系而不只是连续短语边界.
+
 === 依存树的约束
 
 一个句子的依存结构通常表示为有向树:
@@ -1011,11 +1068,33 @@ the/B-NP can/I-NP can/O hold/O the/B-NP water/I-NP
   )
 )
 
-更具体地说:
+这四类方法的差异主要在于“结构从哪里来”:
 
-- 图算法方法把可能的依存边看成带权图, 再寻找最高分依存树.
-- 转移方法从初始栈和缓冲区出发, 逐步执行动作构建树.
-- 神经网络方法通常学习上下文表示, 再预测 head 和依存标签.
+- 生成式方法先假设语言结构如何生成, 再寻找最可能生成当前句子的结构.
+- 判别式方法不显式建模生成过程, 而是直接学习从输入到结构或标签的映射.
+- 转移式方法把构树过程拆成一连串动作, 例如移动词、建立左弧或右弧.
+- 约束式方法先定义合法依存树应满足的约束, 再在约束空间中寻找最优解.
+
+#figure(
+  align(center,
+    commutative-diagram(
+      node-padding: (34pt, 22pt),
+      padding: 8pt,
+
+      node((0, 0), [输入词序列], "dep-input"),
+      node((1, 0), [候选 head / 关系], "dep-cand"),
+      node((1, 3), [模型打分或动作决策], "dep-score"),
+      node((1, 6), [树约束检查], "dep-constraint"),
+      node((2, 3), [依存树], "dep-tree"),
+
+      arr("dep-input", "dep-cand", []),
+      arr("dep-cand", "dep-score", []),
+      arr("dep-score", "dep-constraint", []),
+      arr("dep-constraint", "dep-tree", []),
+    )
+  ),
+  caption: [依存分析可以看作在候选关系中搜索合法且得分高的树]
+)
 
 依存句法分析的输出更适合表达词级关系,  
 因此在信息抽取、关系抽取、问答和语义角色分析中经常作为上游特征.

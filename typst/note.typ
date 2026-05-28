@@ -22,3 +22,4 @@
 #include "08-InformationRetrieval.typ"
 #include "09-LexicalAnalysis.typ"
 #include "10-SyntaxAnalysis.typ"
+#include "11-SemanticAnalysis.typ"
