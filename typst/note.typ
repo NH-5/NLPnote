@@ -23,3 +23,4 @@
 #include "09-LexicalAnalysis.typ"
 #include "10-SyntaxAnalysis.typ"
 #include "11-SemanticAnalysis.typ"
+#include "12-Exercises.typ"
