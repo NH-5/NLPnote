@@ -1,6 +1,6 @@
 # NLPnote
 
-自然语言处理课程笔记，使用 Typst 编写。
+自然语言处理课程笔记，提供 Typst 和 LaTeX 两个版本。
 
 ## 内容
 
@@ -16,24 +16,33 @@
 - `10-SyntaxAnalysis.typ`: 句法分析
 - `note.typ`: 总入口文件
 - `template/`: Typst 模板资源
+- `latex/`: LaTeX 版本源码
 
 ## 构建
 
-需要本地安装 [Typst](https://typst.app/)。
+Typst 版本需要本地安装 [Typst](https://typst.app/)。
 
 ```bash
-typst compile typst/note.typ
+typst compile typst/note.typ NatureLanguageProcess-typst.pdf
 ```
 
-生成的 `note.pdf` 已在 `.gitignore` 中忽略。
+LaTeX 版本需要本地安装 TeX Live 或 MacTeX，并使用 XeLaTeX 构建。
+
+```bash
+cd latex
+latexmk -xelatex note.tex
+```
+
+生成的 PDF 和 LaTeX 辅助文件已在 `.gitignore` 中忽略。
 
 ## Release 发布
 
 仓库已配置 GitHub Actions 自动发布。
 
-- 推送标签 `v*` 时会自动编译 `note.pdf`
+- Pull Request 和 `main` 分支推送会自动编译两个版本作为 CI 检查
+- 推送标签 `v*` 时会自动编译 Typst 和 LaTeX 两个 PDF
 - 工作流会创建同名 GitHub Release
-- `note.pdf` 会作为 Release 附件上传
+- `NatureLanguageProcess-typst.pdf` 和 `NatureLanguageProcess-latex.pdf` 会作为 Release 附件上传
 
 示例：
 

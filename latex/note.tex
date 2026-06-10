@@ -6,13 +6,23 @@
 \usepackage{float}
 \usepackage{longtable}
 
-\setCJKmainfont[
-  BoldFont={STHeitiSC-Medium},
-  ItalicFont={STHeitiSC-Light},
-  BoldItalicFont={STHeitiSC-Medium}
-]{STHeitiSC-Light}
-\setCJKsansfont{STHeitiSC-Medium}
-\setCJKmonofont{STHeitiSC-Medium}
+\IfFontExistsTF{Noto Serif CJK SC}{
+  \setCJKmainfont{Noto Serif CJK SC}
+  \setCJKsansfont{Noto Sans CJK SC}
+  \IfFontExistsTF{Noto Sans Mono CJK SC}{
+    \setCJKmonofont{Noto Sans Mono CJK SC}
+  }{
+    \setCJKmonofont{Noto Sans CJK SC}
+  }
+}{
+  \setCJKmainfont[
+    BoldFont={STHeitiSC-Medium},
+    ItalicFont={STHeitiSC-Light},
+    BoldItalicFont={STHeitiSC-Medium}
+  ]{STHeitiSC-Light}
+  \setCJKsansfont{STHeitiSC-Medium}
+  \setCJKmonofont{STHeitiSC-Medium}
+}
 
 \title{自然语言处理}
 \author{NH5}
