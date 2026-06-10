@@ -180,13 +180,17 @@
     Extension = .otf ,
     Scale = 1.0]
     
-  \setsansfont{texgyreheros}[
-    UprightFont = *-regular ,
-    BoldFont = *-bold ,
-    ItalicFont = *-italic ,
-    BoldItalicFont = *-bolditalic ,
-    Extension = .otf ,
-    Scale = 0.9]
+  \IfFontExistsTF{TeX Gyre Heros}{
+    \setsansfont{TeX Gyre Heros}[Scale = 0.9]
+  }{
+    \setsansfont{texgyreheros}[
+      UprightFont = *-regular ,
+      BoldFont = *-bold ,
+      ItalicFont = *-italic ,
+      BoldItalicFont = *-bolditalic ,
+      Extension = .otf ,
+      Scale = 0.9]
+  }
 \fi
 
 \ifdefstring{\ELEGANT@lang}{cn}{
