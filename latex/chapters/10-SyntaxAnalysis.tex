@@ -1,0 +1,1060 @@
+
+\chapter{句法分析}
+
+
+句法分析(syntactic parsing)是在句子层面上进行的形式化分析.
+它关心的不是一句话在现实世界中是否合理, 而是这句话在语法形式上如何由词语、短语和句子成分组成.
+
+在一个典型的 NLP 流水线中, 句法分析位于词法分析之后、语义分析之前:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+字符串 -> 词法分析 -> 句法分析 -> 语义分析
+\end{Verbatim}
+
+\begin{quote}
+\small
+\textbf{句法分析在 NLP 流水线中的位置}
+\par 节点: pipe-raw: 原始字符串; pipe-lex: 词法分析; pipe-syn: 句法分析; pipe-sem: 语义分析; pipe-lex-out: 词、词性、实体; pipe-syn-out: 结构树或依存树
+\par 边: pipe-raw -\textgreater{} pipe-lex; pipe-lex -\textgreater{} pipe-syn; pipe-syn -\textgreater{} pipe-sem; pipe-lex -\textgreater{} pipe-lex-out; pipe-syn -\textgreater{} pipe-syn-out
+\end{quote}
+
+句法分析的核心目标可以概括为两类:
+
+\begin{itemize}
+\item 确定句子的句法结构, 即构成式结构或句法分析树.
+\item 确定词汇之间的依存关系, 即哪个词支配哪个词.
+\end{itemize}
+
+课件把这个概念拆成三个角度理解:
+
+\begin{itemize}
+\item 定义: 句子层面上的形式化分析.
+\item 特点: 以整个句子为分析单位, 只处理语法形式, 不直接处理语义真假.
+\item 目的: 输出句法结构, 或输出词汇之间的依存关系.
+\end{itemize}
+
+例如句子“亚里士多德吃了一个地球。”从语法形式上看是一个合格句子,
+虽然它在常识语义上不合理.
+这说明句法分析主要处理形式层面的语法结构, 不直接判断句子的真实语义.
+
+\section{句法分析概述}
+
+
+\subsection{句法分析的主要任务}
+
+
+课件中将句法分析分为三类任务:
+
+\begin{table}[H]
+\centering
+\begingroup
+\setlength{\tabcolsep}{2pt}
+\small
+\begin{tabular}{|p{0.28\textwidth}|p{0.28\textwidth}|p{0.28\textwidth}|}
+\hline
+任务 & 关注对象 & 典型输出 \\ \hline
+句法结构分析 & 完整句子的层次结构 & 句法分析树 \\ \hline
+浅层句法分析 & 局部短语块 & Base NP、VG、PP 等语块 \\ \hline
+依存句法分析 & 词与词之间的支配关系 & 依存图或依存树 \\ \hline
+\end{tabular}
+\endgroup
+\end{table}
+
+其中句法结构分析也常称为完全句法分析(full parsing).
+如果不作特别说明, “句法分析树”通常指完全句法分析得到的树状结构.
+
+\subsection{句法结构与依存关系}
+
+
+句法结构分析和依存句法分析看待句子的角度不同.
+
+句法结构分析把句子看作由短语逐层组成的结构, 例如:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+S
++-- NP
++-- VP
+\end{Verbatim}
+
+依存句法分析则把句子看作词与词之间的支配关系网络, 例如:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+讲话 -> 汤姆
+讲话 -> 在
+\end{Verbatim}
+
+前者强调“短语如何组成句子”, 后者强调“词语之间谁支配谁”.
+二者都属于句法层面的形式化描述.
+
+\begin{table}[H]
+\centering
+\begingroup
+\setlength{\tabcolsep}{2pt}
+\small
+\caption{成分结构与依存结构的观察角度}
+\begin{tabular}{|p{0.28\textwidth}|p{0.28\textwidth}|p{0.28\textwidth}|}
+\hline
+输入句子 & 成分句法视角 & 依存句法视角 \\ \hline
+\texttt{汤姆 在 讲话} & \texttt{S -\textgreater{} NP VP} & \texttt{讲话 -\textgreater{} 汤姆}, \texttt{讲话 -\textgreater{} 在} \\ \hline
+核心问题 & 哪些词组成短语, 短语怎样组成句子 & 哪个词支配哪个词 \\ \hline
+结构中心 & 短语与层级 & 词与词之间的边 \\ \hline
+\end{tabular}
+\endgroup
+\end{table}
+
+\section{句法结构分析}
+
+
+\subsection{基本概念}
+
+
+句法结构分析(syntactic structure parsing)是指:
+给定一个输入单词序列, 判断它是否符合给定语法规则, 并确定符合这些规则的句法结构.
+
+句法分析树(syntactic parsing tree)是用树状数据结构表示的句法结构.
+树中通常包含:
+
+\begin{itemize}
+\item 根节点: 整个句子, 常记为$S$.
+\item 内部节点: 短语或非终结符, 如\texttt{NP}、\texttt{VP}、\texttt{PP}.
+\item 叶节点: 输入句子中的词或终结符.
+\end{itemize}
+
+例如句子:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+The can can hold the water
+\end{Verbatim}
+
+其中第一个 \texttt{can} 可作名词, 第二个 \texttt{can} 可作助动词.
+在一种合理分析中, 句法树可表示为:
+
+\begin{quote}
+\small
+\textbf{句子 \texttt{The can can hold the water} 的一种句法结构}
+\par 节点: s: $S$; np1: $\operatorname{NP}$; vp1: $\operatorname{VP}$; the1: The; can1: can; can2: can; vp2: $\operatorname{VP}$; hold: hold; np2: $\operatorname{NP}$; the2: the; water: water
+\par 边: s -\textgreater{} np1; s -\textgreater{} vp1; np1 -\textgreater{} the1; np1 -\textgreater{} can1; vp1 -\textgreater{} can2; vp1 -\textgreater{} vp2; vp2 -\textgreater{} hold; vp2 -\textgreater{} np2; np2 -\textgreater{} the2; np2 -\textgreater{} water
+\end{quote}
+
+从这个例子可以看出, 句法结构分析需要两类语言知识:
+
+\begin{itemize}
+\item 语法规则库, 如 \texttt{S -\textgreater{} NP VP}、\texttt{VP -\textgreater{} V NP}.
+\item 词典或词法信息, 如 \texttt{can} 可以是名词、助动词或动词.
+\end{itemize}
+
+句法分析的本质就是:
+从语法规则库中搜索一组能够合理解释输入句子的规则, 并把这些规则组织成树.
+
+\subsection{人工规则方法与统计方法}
+
+
+构建句法结构分析器时, 关键问题有两个:
+
+\begin{itemize}
+\item 如何构建语法规则库.
+\item 如何设计基于规则库的搜索或推理算法.
+\end{itemize}
+
+更具体地说, 一个好的规则库需要把语言中的语法规律写成可计算的规则模板:
+人能够解释清楚, 计算机也能够根据模板存储、匹配和推理.
+推理算法则本质上是在规则库中搜索一条解释链:
+从底层词语或词性出发, 按规则逐步合成为短语, 最后合成为完整句子.
+
+按规则库来源, 可分为两种基本路线.
+
+\begin{quote}
+\small
+\textbf{句法结构分析器的两条典型路线}
+\par 节点: rules: 语法规则库; manual-rules: 人工编写; stat-rules: 机器学习; cfg-template: CFG 模板; pcfg-template: PCFG 模板; cyk-search: CYK 等穷举式搜索; vit-search: Viterbi / 改进 CYK; tree-out: 句法分析树
+\par 边: rules -\textgreater{} manual-rules; rules -\textgreater{} stat-rules; manual-rules -\textgreater{} cfg-template; stat-rules -\textgreater{} pcfg-template; cfg-template -\textgreater{} cyk-search; pcfg-template -\textgreater{} vit-search; cyk-search -\textgreater{} tree-out; vit-search -\textgreater{} tree-out
+\end{quote}
+
+\subsubsection{基于人工规则的方法}
+
+
+人工规则方法由人手工组织语法规则, 建立语法知识库, 再根据规则穷举式地推导句法分析树.
+
+常见框架是:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+人工编写 CFG 规则库 -> 输入句子 -> 搜索算法 -> 句法分析树
+\end{Verbatim}
+
+其中 CFG 常作为人工编写规则的模板, CYK 等算法则用于在规则库中高效搜索可行结构.
+
+优点:
+
+\begin{itemize}
+\item 原理简单, 规则含义直观.
+\item 容易用于教学和小规模封闭领域.
+\end{itemize}
+
+缺点:
+
+\begin{itemize}
+\item 规则有限时, 长句和复杂句难以分析.
+\item 句子有多种结构时, 难以判断哪一棵树最好.
+\item 人工规则具有主观性.
+\item 编制和维护规则的工作量巨大.
+\end{itemize}
+
+\subsubsection{基于统计的方法}
+
+
+统计方法使用训练数据自动抽取语法规则, 并给规则或分析结果附加概率.
+典型模型包括 PCFG 及其改进模型.
+
+常见框架是:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+标注树库 -> 规则抽取与参数估计 -> 输入句子 -> 动态规划搜索 -> 最优句法树
+\end{Verbatim}
+
+这里 PCFG 常作为机器从树库中抽取规则的模板;
+Viterbi、改进 CYK 等动态规划算法则用于在多个候选结构中寻找最优结构.
+
+课件中把这种搜索称为启发式搜索:
+它不是盲目枚举所有可能树, 而是用概率或得分引导搜索方向,
+在保留可解释结构的同时尽量减少无效展开.
+
+优点:
+
+\begin{itemize}
+\item 降低人工编制规则的工作量和主观性.
+\item 学到的规则更贴近训练语料中的真实语言现象.
+\item 能在多个候选结构中选择概率最高的结构.
+\end{itemize}
+
+\section{CFG 文法模型回顾}
+
+
+\subsection{CFG 的定义}
+
+
+上下文无关文法(context-free grammar, CFG)通常写作四元组:
+\[
+G = (N, \Sigma, P, S)
+\]
+其中:
+
+\begin{itemize}
+\item $N$是非终结符集合, 如\texttt{S}、\texttt{NP}、\texttt{VP}.
+\item $\Sigma$是终结符集合, 即句子中最终出现的词或符号.
+\item $P$是产生式规则集合.
+\item $S$是开始符号, 表示句子起点.
+\end{itemize}
+
+CFG 的产生式具有形式:
+\[
+A \to \gamma
+\]
+其中$A \in N$, $\gamma \in (N \cup \Sigma)^*$.
+
+“上下文无关”的含义是:
+规则左侧只有一个非终结符, 因而展开$A$时不需要查看它前后出现了什么符号.
+
+例如:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+S  -> NP VP
+NP -> Art N
+VP -> Aux VP
+VP -> V NP
+\end{Verbatim}
+
+这些规则描述的是短语如何组合成更大的短语或句子.
+
+\subsection{用 CFG 生成句法树}
+
+
+用 CFG 生成句法树的一般过程是:
+
+\begin{enumerate}
+\item[1.] 用开始符号$S$初始化句子.
+\item[2.] 若当前符号串中仍有非终结符, 就选择一个非终结符继续展开.
+\item[3.] 从规则集合$P$中找出左侧匹配的规则, 替换该非终结符.
+\item[4.] 重复直到所有符号都变成终结符.
+\end{enumerate}
+
+例如:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+S
+=> NP VP
+=> Art N VP
+=> The can VP
+=> The can Aux VP
+=> The can can V NP
+=> The can can hold Art N
+=> The can can hold the water
+\end{Verbatim}
+
+这个过程可以看作从根节点向叶节点生长句法树.
+如果用深度优先搜索枚举所有可能规则, 方法直观但效率很低,
+因此实际句法分析常使用动态规划算法, 例如 CYK.
+
+\section{CFG + CYK 算法}
+
+
+\subsection{乔姆斯基范式}
+
+
+CYK(Cocke-Younger-Kasami)算法要求文法满足乔姆斯基范式(Chomsky Normal Form, CNF).
+在 CNF 中, 产生式通常只有两种形式:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+A -> B C
+A -> w
+\end{Verbatim}
+
+其中$A, B, C$是非终结符, $w$是终结符.
+这种形式使得任意非叶节点都恰好有两个子节点, 方便用区间动态规划处理.
+
+若原始 CFG 中存在三元规则、长规则或单位规则, 需要先进行范式化.
+例如:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+S -> VP Aux NP
+\end{Verbatim}
+
+可以引入新符号$X_{\operatorname{AuxNP}}$:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+S           -> VP X_AuxNP
+X_AuxNP    -> Aux NP
+\end{Verbatim}
+
+范式化不会改变文法能生成的终结符串, 只是改变中间非终结符的组织方式.
+
+\begin{quote}
+\small
+\textbf{把三元产生式二叉化为 CNF 友好的形式}
+\par 节点: cnf-old: \texttt{S -\textgreater{} VP Aux NP}; cnf-new-1: \texttt{S -\textgreater{} VP X\_AuxNP}; cnf-new-2: \texttt{X\_AuxNP -\textgreater{} Aux NP}; cnf-goal: 每条规则右侧至多两个符号
+\par 边: cnf-old -\textgreater{} cnf-new-1; cnf-old -\textgreater{} cnf-new-2; cnf-new-1 -\textgreater{} cnf-goal; cnf-new-2 -\textgreater{} cnf-goal
+\end{quote}
+
+\subsection{CYK 的核心思想}
+
+
+CYK 把句法分析转化为三角表填充问题.
+给定句子:
+\[
+W = w_1 w_2 \dots w_n
+\]
+定义表项$T[i,j]$表示能够推出子串$w_i \dots w_j$的非终结符集合.
+
+算法自底向上填表:
+
+\begin{enumerate}
+\item[1.] 初始化长度为 1 的子串:
+\end{enumerate}
+\[
+T[i,i] = \{A | A \to w_i\}
+\]
+
+\begin{enumerate}
+\item[2.] 按子串长度从短到长递推.
+\end{enumerate}
+对每个区间$[i,j]$, 枚举切分点$k$:
+\[
+[i,j] = [i,k] + [k+1,j]
+\]
+
+\begin{enumerate}
+\item[3.] 若存在规则$A \to B C$, 且
+\end{enumerate}
+\[
+B \in T[i,k], \quad C \in T[k+1,j]
+\]
+则把$A$加入$T[i,j]$.
+
+\begin{enumerate}
+\item[4.] 若最终$S \in T[1,n]$, 则句子可由文法生成.
+\end{enumerate}
+
+伪代码如下:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+for i = 1..n:
+  T[i,i] = {A | A -> w_i}
+
+for length = 2..n:
+  for i = 1..n-length+1:
+    j = i + length - 1
+    for k = i..j-1:
+      for each rule A -> B C:
+        if B in T[i,k] and C in T[k+1,j]:
+          add A to T[i,j]
+          record backpointer (A, k, B, C)
+\end{Verbatim}
+
+其中 backpointer 用于最后回溯得到具体的句法树.
+如果一个格子中同一个非终结符有多个来源, 就可能对应多棵分析树.
+
+课件中三角表的“取值规律”可以理解为对切分点枚举的可视化记忆:
+
+\begin{itemize}
+\item 横向从目标格左侧可组合的子区间取值.
+\item 纵向从与横向跨度配对的位置向下取值.
+\item 每一对横纵取值都对应一个切分点$k$, 本质上仍是在检查$T[i,k]$和$T[k+1,j]$能否通过某条规则合成父节点.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begingroup
+\setlength{\tabcolsep}{2pt}
+\small
+\caption{CYK 的一个格子由所有可能切分点共同决定}
+\begin{tabular}{|p{0.20\textwidth}|p{0.20\textwidth}|p{0.20\textwidth}|p{0.20\textwidth}|}
+\hline
+递推对象 & 左半区间 & 右半区间 & 得到的父节点 \\ \hline
+$T[i,j]$ & $T[i,k]$ & $T[k+1,j]$ & $A$ \\ \hline
+条件 & $B \in T[i,k]$ & $C \in T[k+1,j]$ & 存在规则$A \to B C$ \\ \hline
+记录 & 子树$B$ & 子树$C$ & backpointer: $(A,k,B,C)$ \\ \hline
+\end{tabular}
+\endgroup
+\end{table}
+
+\subsection{CYK 的特点}
+
+
+CYK 算法有三个重要特点:
+
+\begin{itemize}
+\item 要求文法先转为 CNF 或近似 CNF.
+\item 使用自底向上的动态规划, 避免重复分析同一子串.
+\item 既可以判断句子是否符合文法, 也可以通过回溯得到一棵或多棵句法树.
+\end{itemize}
+
+动画页中的“记住分叉点”和“倒退回分叉点”对应的就是 backpointer:
+填表时记录候选来源, 回溯时沿这些来源恢复所有可能结构.
+课件中把表格逆时针旋转 90 度, 只是为了让区间组合过程更接近树的视觉形状.
+
+朴素实现的主要复杂度为:
+\[
+O(n^3 |G|)
+\]
+其中$n$是句子长度, $|G|$可理解为可枚举的二元产生式数量.
+
+\subsection{CYK 示例: 二义句分析}
+
+
+考虑句子:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+咬 死 了 猎人 的 狗
+\end{Verbatim}
+
+原始文法为:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+S   -> VC NP | VP Aux NP
+VC  -> v a | VC utl
+NP  -> n | NP Aux NP | NP NP
+VP  -> VC NP
+v   -> 咬
+a   -> 死
+n   -> 猎人 | 狗
+utl -> 了
+Aux -> 的
+\end{Verbatim}
+
+为了使用 CYK, 可把三元规则二叉化, 例如:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+S        -> VP X_AuxNP
+NP       -> NP X_AuxNP
+X_AuxNP -> Aux NP
+\end{Verbatim}
+
+其余二元规则保持不变.
+若保留词性预终结符, 初始化时可对单位规则做闭包, 即把\texttt{n -\textgreater{} 猎人}和\texttt{NP -\textgreater{} n}合并理解为\texttt{猎人}可对应\texttt{NP}.
+
+表中关键项如下:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+T[1,1] = {v}
+T[2,2] = {a}
+T[3,3] = {utl}
+T[4,4] = {n, NP}
+T[5,5] = {Aux}
+T[6,6] = {n, NP}
+
+T[1,2] = {VC}              # VC -> v a
+T[1,3] = {VC}              # VC -> VC utl
+T[5,6] = {X_AuxNP}         # X_AuxNP -> Aux NP
+T[4,6] = {NP}              # NP -> NP X_AuxNP
+T[1,4] = {S, VP}           # S/VP -> VC NP
+T[1,6] = {S}               # 两种来源
+\end{Verbatim}
+
+\begin{table}[H]
+\centering
+\begingroup
+\setlength{\tabcolsep}{2pt}
+\scriptsize
+\caption{“咬 死 了 猎人 的 狗”的 CYK 三角表关键填充结果}
+\begin{tabular}{|p{0.105\textwidth}|p{0.105\textwidth}|p{0.105\textwidth}|p{0.105\textwidth}|p{0.105\textwidth}|p{0.105\textwidth}|p{0.105\textwidth}|}
+\hline
+跨度 & 1 咬 & 2 死 & 3 了 & 4 猎人 & 5 的 & 6 狗 \\ \hline
+1 & \texttt{\{v\}} & \texttt{\{a\}} & \texttt{\{utl\}} & \texttt{\{n, NP\}} & \texttt{\{Aux\}} & \texttt{\{n, NP\}} \\ \hline
+2 & \texttt{\{VC\}} &  &  &  & \texttt{\{X\_AuxNP\}} &  \\ \hline
+3 & \texttt{\{VC\}} &  &  & \texttt{\{NP\}} &  &  \\ \hline
+4 & \texttt{\{S, VP\}} &  &  &  &  &  \\ \hline
+5 &  &  &  &  &  &  \\ \hline
+6 & \texttt{\{S\}} &  &  &  &  &  \\ \hline
+\end{tabular}
+\endgroup
+\end{table}
+
+$T[1,6]$中$S$至少有两种来源:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+S -> VC NP
+VC -> 咬 死 了
+NP -> 猎人 的 狗
+\end{Verbatim}
+
+以及:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+S -> VP X_AuxNP
+VP -> VC NP
+X_AuxNP -> 的 狗
+\end{Verbatim}
+
+这说明同一句子可产生不同结构解释.
+CYK 表不仅能判断句子可分析, 还可以通过回溯保留这种句法歧义.
+
+\begin{quote}
+\small
+\textbf{结构解释一: “咬死了”作谓词, “猎人的狗”作名词短语}
+\par 节点: hw-s1: $S$; hw-vc1: $\operatorname{VC}$; hw-np1: $\operatorname{NP}$; hw-yao1: 咬; hw-si1: 死了; hw-hunter1: 猎人; hw-dog1: 的狗
+\par 边: hw-s1 -\textgreater{} hw-vc1; hw-s1 -\textgreater{} hw-np1; hw-vc1 -\textgreater{} hw-yao1; hw-vc1 -\textgreater{} hw-si1; hw-np1 -\textgreater{} hw-hunter1; hw-np1 -\textgreater{} hw-dog1
+\end{quote}
+
+\begin{quote}
+\small
+\textbf{结构解释二: “咬死了猎人”先组成 VP, 再与“的狗”组合}
+\par 节点: hw-s2: $S$; hw-vp2: $\operatorname{VP}$; hw-x2: $\operatorname{X_AuxNP}$; hw-vc2: $\operatorname{VC}$; hw-hunter2: 猎人; hw-de2: 的; hw-dog2: 狗; hw-yao2: 咬; hw-si2: 死了
+\par 边: hw-s2 -\textgreater{} hw-vp2; hw-s2 -\textgreater{} hw-x2; hw-vp2 -\textgreater{} hw-vc2; hw-vp2 -\textgreater{} hw-hunter2; hw-x2 -\textgreater{} hw-de2; hw-x2 -\textgreater{} hw-dog2; hw-vc2 -\textgreater{} hw-yao2; hw-vc2 -\textgreater{} hw-si2
+\end{quote}
+
+\section{PCFG 模型}
+
+
+\subsection{从 CFG 到 PCFG}
+
+
+CFG 只回答“某条规则能不能用”, 不能回答“哪条规则更可能”.
+这也是课件中说“CFG 模型的拟合能力不足”的直接原因:
+它能给出语法硬约束, 但不能刻画真实语料中不同结构的偏好差异.
+
+概率上下文无关文法(probabilistic context-free grammar, PCFG)在 CFG 规则上引入概率参数.
+
+一条规则写作:
+\[
+A \to \beta [\theta_{A \to \beta}]
+\]
+其中$\theta_{A \to \beta}$表示从$A$展开为$\beta$的概率.
+
+对同一个左侧非终结符$A$, 所有候选展开概率之和为 1:
+\[
+\sum_{\beta} \theta_{A \to \beta} = 1
+\]
+
+例如:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+VP -> V NP     [0.65]
+VP -> Aux VP   [0.25]
+VP -> V        [0.10]
+\end{Verbatim}
+
+PCFG 与 CFG 的两点关键差异是:
+
+\begin{itemize}
+\item 规则带有概率参数.
+\item 规则和概率通常可从标注树库中自动估计.
+\end{itemize}
+
+加入概率后, PCFG 的最大变化不是把规则写得更复杂,
+而是让文法变成一个适合机器从数据中自动学习的模型.
+概率参数还提供了结构偏好: 当一个句子有多棵可行句法树时,
+模型可以比较这些树的好坏程度.
+
+\subsection{语法树概率}
+
+
+在 PCFG 中, 一棵句法树的概率等于树中所有规则概率的乘积:
+\[
+P(T | G) = \prod_{r \in T} \theta_r
+\]
+
+若一个句子$W$有多棵候选树, 则最优句法分析通常取概率最大的树:
+\[
+T^* = \arg\max_{T \in \operatorname{Trees}(W)} P(T | G)
+\]
+
+这正是 PCFG 相比普通 CFG 的重要优势:
+它不仅能找出“可行结构”, 还能在多个可行结构中选出“更可能的结构”.
+
+\begin{quote}
+\small
+\textbf{PCFG 通过规则概率给候选句法树打分}
+\par 节点: pcfg-s: $S$; pcfg-np: $\operatorname{NP}$; pcfg-vp: $\operatorname{VP}$; pcfg-can: The can; pcfg-aux: can; pcfg-vp2: $\operatorname{VP}$; pcfg-hold: hold; pcfg-water: the water
+\par 边: pcfg-s -\textgreater{} pcfg-np; pcfg-s -\textgreater{} pcfg-vp; pcfg-np -\textgreater{} pcfg-can; pcfg-vp -\textgreater{} pcfg-aux; pcfg-vp -\textgreater{} pcfg-vp2; pcfg-vp2 -\textgreater{} pcfg-hold; pcfg-vp2 -\textgreater{} pcfg-water
+\end{quote}
+
+\subsection{PCFG 参数估计}
+
+
+若训练语料是带句法树标注的树库, 参数可以用极大似然估计:
+\[
+\theta_{A \to \beta}
+    = C(A \to \beta) / C(A)
+\]
+
+其中:
+
+\begin{itemize}
+\item $C(A \to \beta)$表示规则$A \to \beta$在树库中出现的次数.
+\item $C(A)$表示所有左侧为$A$的规则出现次数之和.
+\end{itemize}
+
+如果训练数据只有句子而没有树, 则需要把句法树看作隐变量,
+常用 EM 思想或内向-外向算法(inside-outside algorithm)估计规则期望计数.
+
+\subsection{PCFG 的三个基本问题}
+
+
+从模型训练和模型使用角度看, PCFG 常对应三个问题:
+
+\begin{enumerate}
+\item[1.] 概率计算: 给定句子和文法, 计算句子或部分结构的概率.
+\item[2.] 句法分析: 给定句子, 求概率最大的句法树.
+\item[3.] 模型学习: 给定训练语料, 估计规则概率参数.
+\end{enumerate}
+
+其中$P(W | G)$可以类比语言模型中的句子概率:
+把文法$G$看作一个能够生成句子的模型,
+则$P(W | G)$表示这个模型生成词串$W$的概率.
+若句法树未观测到, 这个概率需要把所有可能句法树的概率加总起来.
+
+与 HMM、CRF 等模型类似, 这些问题分别对应概率计算、最优结构推断和参数学习.
+
+课件对学习要求的划分也可以这样记:
+
+\begin{itemize}
+\item EM 算法: 需要理解其“在隐变量存在时反复估计期望计数并更新参数”的思想.
+\item 内向算法: 主要用于计算或优化$P(W | G)$, 作为扩展了解即可.
+\item 内向-外向算法: 可看作 PCFG 参数学习中的 EM 实现方式.
+\end{itemize}
+
+\subsection{PCFG 系统框架}
+
+
+基于统计方法的句法分析系统通常分成训练和分析两条线:
+
+\begin{quote}
+\small
+\textbf{PCFG 句法分析器的训练与分析框架}
+\par 节点: pcfg-train-treebank: 标注树库; pcfg-rule-extract: 规则抽取; pcfg-param: 参数估计; pcfg-model: PCFG 模型; pcfg-input: 输入句子; pcfg-parser: PCFG + CYK / Viterbi; pcfg-output: 最优句法树
+\par 边: pcfg-train-treebank -\textgreater{} pcfg-rule-extract; pcfg-rule-extract -\textgreater{} pcfg-param; pcfg-param -\textgreater{} pcfg-model; pcfg-model -\textgreater{} pcfg-parser; pcfg-input -\textgreater{} pcfg-parser; pcfg-parser -\textgreater{} pcfg-output
+\end{quote}
+
+训练阶段回答“规则和概率从哪里来”, 分析阶段回答“怎样从候选结构中选最优”.
+
+\section{PCFG + CYK 算法}
+
+
+普通 CYK 的表项只记录某个非终结符能否推出某段子串.
+PCFG + CYK 进一步在表中记录最佳概率和回溯指针.
+
+设$V[i,j,A]$表示非终结符$A$推出子串$w_i \dots w_j$的最大概率.
+初始化:
+\[
+V[i,i,A] = \theta_{A \to w_i}
+\]
+
+递推:
+\[
+V[i,j,A]
+  =
+  \max_{A \to B C, i \le k < j}
+  \theta_{A \to B C} V[i,k,B] V[k+1,j,C]
+\]
+
+若要得到最优句法树, 对每个最大值保存对应的切分点$k$和子节点$B,C$.
+最后从$V[1,n,S]$回溯即可.
+
+这个递推本质上是 Viterbi 思想在 PCFG 句法分析中的应用.
+若把递推中的\texttt{max}换成求和, 则得到所有可能分析树概率总和, 对应内向概率计算.
+
+\begin{table}[H]
+\centering
+\begingroup
+\setlength{\tabcolsep}{2pt}
+\small
+\caption{普通 CYK 与 PCFG + CYK 的表项差异}
+\begin{tabular}{|p{0.28\textwidth}|p{0.28\textwidth}|p{0.28\textwidth}|}
+\hline
+CYK 表项 & CFG 版本 & PCFG 版本 \\ \hline
+存储内容 & 可推出该子串的非终结符集合 & 每个非终结符的最佳概率 \\ \hline
+组合规则 & $A \to B C$ 可用即可 & $\theta(A \to B C) \cdot p_B \cdot p_C$ 最大 \\ \hline
+回溯目标 & 枚举可行树 & 取概率最大的树 \\ \hline
+最终判断 & \texttt{S in T[1,n]} & \texttt{V[1,n,S]} 是否存在且最大 \\ \hline
+\end{tabular}
+\endgroup
+\end{table}
+
+\subsection{动态规划剪枝思想}
+
+
+课件中 PCFG + CYK 的动画页强调了一个关键思想:
+如果一个表格中存在多种可能, 只需要保留概率最大的那种, 因为后续组合都会继续乘以非负概率.
+
+也就是说, 对同一个区间和同一个非终结符$A$, 若有两种来源:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+A => ...  概率 0.40
+A => ...  概率 0.12
+\end{Verbatim}
+
+在求最优句法树时, 后者可以被剪掉.
+这就是动态规划避免指数级搜索的核心原因.
+
+\subsection{PCFG 的局限与改进}
+
+
+PCFG 的基本独立性假设较强:
+同一个非终结符的展开概率只由该非终结符决定, 不考虑它出现的父节点、兄弟节点、词汇中心等上下文.
+
+因此基础 PCFG 容易出现拟合能力不足:
+
+\begin{itemize}
+\item 同一个\texttt{NP}在主语位置和宾语位置可能有不同展开偏好, 基础 PCFG 无法区分.
+\item 同一个\texttt{VP}内部的动词不同, 其后接成分可能明显不同.
+\item 只看非终结符类别时, 很难利用词汇语义和搭配信息.
+\end{itemize}
+
+常见改进包括:
+
+\begin{itemize}
+\item 父节点标注(parent annotation): 把\texttt{NP}拆成\texttt{NP\textasciicircum{}S}、\texttt{NP\textasciicircum{}VP}等上下文化符号.
+\item 水平和垂直 Markov 化: 限制但保留部分祖先或兄弟上下文.
+\item 词汇化 PCFG: 在短语节点上记录中心词, 让规则概率依赖词汇信息.
+\item 平滑与回退: 处理稀疏规则和低频组合.
+\end{itemize}
+
+这些改进的目标是提高拟合能力, 同时避免参数空间过大.
+
+\section{句法结构分析器的性能评价}
+
+
+句法结构分析器通常与人工标注的标准树(gold tree)比较.
+
+若把一棵句法树看成一组成分(constituent), 每个成分由跨度和标签确定,
+例如\texttt{NP[2,4]}表示第 2 到第 4 个词构成一个名词短语, 则可以计算:
+
+\[
+P = N_{\operatorname{correct}} / N_{\operatorname{pred}}
+\]
+\[
+R = N_{\operatorname{correct}} / N_{\operatorname{gold}}
+\]
+\[
+F_1 = (2 P R) / (P + R)
+\]
+
+其中:
+
+\begin{itemize}
+\item $N_{\operatorname{pred}}$是系统预测的成分数.
+\item $N_{\operatorname{gold}}$是人工标准树中的成分数.
+\item $N_{\operatorname{correct}}$是预测正确的成分数.
+\end{itemize}
+
+若比较时要求标签和跨度都正确, 称为 labeled precision/recall.
+若只比较跨度, 不比较标签, 称为 unlabeled precision/recall.
+
+对依存句法分析, 常见指标是:
+
+\begin{itemize}
+\item UAS(unlabeled attachment score): head 预测正确的词比例.
+\item LAS(labeled attachment score): head 和依存关系标签都正确的词比例.
+\end{itemize}
+
+\section{浅层句法分析}
+
+
+\subsection{基本概念}
+
+
+浅层句法分析(shallow parsing)只关注局部范围内的语法属性,
+不试图恢复完整句法树, 也不重点处理远距离依存关系.
+
+换句话说, 它关注的是:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+把句子拆成若干相对独立的局部块, 并识别每个局部块的类型
+\end{Verbatim}
+
+这种局部块通常称为语块(chunk).
+
+与完全句法分析相比:
+
+\begin{table}[H]
+\centering
+\begingroup
+\setlength{\tabcolsep}{2pt}
+\small
+\begin{tabular}{|p{0.28\textwidth}|p{0.28\textwidth}|p{0.28\textwidth}|}
+\hline
+比较维度 & 完全句法分析 & 浅层句法分析 \\ \hline
+目标 & 恢复完整层次树 & 识别局部语块 \\ \hline
+结构深度 & 递归、层次化 & 通常非递归 \\ \hline
+输出 & 完整句法树 & Base NP、VG、PP 等 \\ \hline
+难度 & 更高 & 更低 \\ \hline
+用途 & 深层理解与结构推理 & 信息抽取、实体识别前处理等 \\ \hline
+\end{tabular}
+\endgroup
+\end{table}
+
+\subsection{语块类型}
+
+
+根据 Abney 对语块的定义, 浅层句法分析常识别如下类型:
+
+\begin{itemize}
+\item Base NP: 非递归的名词短语.
+\item VG: 动词词组.
+\item PP: 介词短语.
+\item DP: 副词短语.
+\end{itemize}
+
+其中 Base NP 是最常见的浅层句法分析对象.
+
+\subsection{Base NP}
+
+
+Base NP(base noun phrase)是非递归的基本名词短语.
+它本身是一个名词短语, 但内部不再包含另一个名词短语.
+
+例如:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+[the water]
+[a good student]
+[自然语言处理 课程]
+\end{Verbatim}
+
+都可以看作 Base NP.
+而包含更复杂嵌套结构的名词短语, 需要在浅层分析中拆成更小的局部块.
+
+Base NP 识别常被转化为序列标注问题.
+给定词序列, 对每个词预测其在语块中的位置标签.
+
+常见 IOB 标注如下:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+B-NP  名词短语开始
+I-NP  名词短语内部
+O     不属于当前目标语块
+\end{Verbatim}
+
+例如:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+the/B-NP can/I-NP can/O hold/O the/B-NP water/I-NP
+\end{Verbatim}
+
+\begin{table}[H]
+\centering
+\begingroup
+\setlength{\tabcolsep}{2pt}
+\scriptsize
+\caption{Base NP 识别可以转化为 IOB 序列标注}
+\begin{tabular}{|p{0.105\textwidth}|p{0.105\textwidth}|p{0.105\textwidth}|p{0.105\textwidth}|p{0.105\textwidth}|p{0.105\textwidth}|p{0.105\textwidth}|}
+\hline
+词 & the & can & can & hold & the & water \\ \hline
+IOB 标签 & \texttt{B-NP} & \texttt{I-NP} & \texttt{O} & \texttt{O} & \texttt{B-NP} & \texttt{I-NP} \\ \hline
+语块 & \texttt{NP} 开始 & \texttt{NP} 内部 & 语块外 & 语块外 & 第二个 \texttt{NP} 开始 & 第二个 \texttt{NP} 内部 \\ \hline
+\end{tabular}
+\endgroup
+\end{table}
+
+这类任务需要回答三个问题:
+
+\begin{itemize}
+\item 当前词是否在某个语块内.
+\item 如果在语块内, 它属于哪类语块.
+\item 它位于语块的开始、中间还是外部.
+\end{itemize}
+
+常用方法包括基于规则的方法、HMM、CRF、SVM 和神经网络序列标注模型.
+
+\section{依存句法分析}
+
+
+\subsection{依存句法理论}
+
+
+依存句法理论源自法国语言学家 Tesniere 的结构句法理论.
+该理论认为, 句子中的词并不是孤立堆放的, 而是通过“关联”形成整体意义.
+
+例如句子:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+汤姆在讲话
+\end{Verbatim}
+
+它不是同时表达“有一个人叫汤姆”和“有人在讲话”两个彼此独立的信息,
+而是表达“讲话这个动作由汤姆发出”.
+这种把词联系起来形成整体意义的句法信息, 就是依存关系.
+
+依存关系可写作:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+支配者 -> 被支配者
+\end{Verbatim}
+
+在传统成分句法中, 主语常被突出;
+而依存句法更强调动词中心地位, 关注其他词如何依附于中心动词.
+
+\begin{quote}
+\small
+\textbf{句子“汤姆在讲话”的简化依存关系}
+\par 节点: talk: 讲话; tom: 汤姆; zai: 在
+\par 边: talk -\textgreater{} tom; talk -\textgreater{} zai
+\end{quote}
+
+\subsection{依存句法理论基础与优势}
+
+
+课件把依存句法理论的基础理解为对“关联”的约束化描述.
+对于一个句子, 依存分析不再先构造一层层短语, 而是直接回答每个词依附于哪个中心词.
+
+这种描述通常隐含几个基本约束:
+
+\begin{itemize}
+\item 中心性: 句子通常围绕谓词或核心动词组织.
+\item 单支配: 除根节点外, 每个词通常只依存于一个支配词.
+\item 整体性: 所有词通过依存边连成一个整体结构.
+\item 有向性: 每条边都有 head 到 dependent 的方向.
+\end{itemize}
+
+因此依存句法的优势在于:
+
+\begin{itemize}
+\item 直接刻画词与词之间的语法关系, 便于连接到关系抽取、问答等下游任务.
+\item 结构比完整成分树更扁平, 输出更接近“谁修饰谁、谁支配谁”的使用需求.
+\item 对词序较自由的语言也比较友好, 因为它重点描述支配关系而不只是连续短语边界.
+\end{itemize}
+
+\subsection{依存树的约束}
+
+
+一个句子的依存结构通常表示为有向树:
+
+\begin{itemize}
+\item 每个词是一个节点.
+\item 每条边表示一个 head 到 dependent 的关系.
+\item 除根节点外, 每个词通常只有一个支配词.
+\item 整体结构连通且无环.
+\end{itemize}
+
+这些约束对分析器设计很重要:
+它们把“任意词之间都可能连边”的巨大搜索空间,
+缩小为“每个词选择一个支配词并满足树约束”的结构空间.
+
+若所有依存弧画在词序上方时不交叉, 称为投射依存树(projective dependency tree).
+若存在交叉依存弧, 称为非投射结构(non-projective structure).
+
+依存句法结构可以用三种形式描述:
+
+\begin{itemize}
+\item 有向图方法: 直接把词作为节点, 依存关系作为有向边.
+\item 依存树方法: 强调整体满足树约束.
+\item 依存投射树方法: 在依存树基础上增加无交叉约束.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begingroup
+\setlength{\tabcolsep}{2pt}
+\small
+\caption{依存分析结果也可表示成每个词的 head 与关系标签}
+\begin{tabular}{|p{0.16\textwidth}|p{0.16\textwidth}|p{0.16\textwidth}|p{0.16\textwidth}|p{0.16\textwidth}|}
+\hline
+词序 & 汤姆 & 在 & 讲话 & 。 \\ \hline
+head & 讲话 & 讲话 & ROOT & 讲话 \\ \hline
+关系 & SBV & ADV & HED & WP \\ \hline
+\end{tabular}
+\endgroup
+\end{table}
+
+\subsection{常见依存关系标签}
+
+
+常见依存关系标签包括:
+
+\begin{table}[H]
+\centering
+\begingroup
+\setlength{\tabcolsep}{2pt}
+\small
+\begin{tabular}{|p{0.28\textwidth}|p{0.28\textwidth}|p{0.28\textwidth}|}
+\hline
+标签 & 含义 & 例子 \\ \hline
+SBV & 主谓关系 & “我/吃饭”中 \texttt{吃 -\textgreater{} 我} \\ \hline
+VOB & 动宾关系 & “吃/苹果”中 \texttt{吃 -\textgreater{} 苹果} \\ \hline
+ATT & 定中关系 & “红色/苹果”中 \texttt{苹果 -\textgreater{} 红色} \\ \hline
+DE & 结构助词关系 & “猎人/的/狗”中 \texttt{狗 -\textgreater{} 的} 或依存体系中的相应助词关系 \\ \hline
+\end{tabular}
+\endgroup
+\end{table}
+
+不同语料库的标签体系不完全相同, 因此实际使用时要以对应标注规范为准.
+
+\subsection{依存句法分析算法}
+
+
+依存句法分析的目标是为输入句子寻找最合理的依存结构.
+常见方法可以分为四类:
+
+\begin{table}[H]
+\centering
+\begingroup
+\setlength{\tabcolsep}{2pt}
+\small
+\begin{tabular}{|p{0.28\textwidth}|p{0.28\textwidth}|p{0.28\textwidth}|}
+\hline
+方法类型 & 基本思想 & 典型例子 \\ \hline
+生成式方法 & 学习语言结构的生成过程, 再求最可能结构 & PCFG 等概率生成模型 \\ \hline
+判别式方法 & 直接学习从输入句子到结构或标签的决策函数 & SVM、RNN 等分类或序列模型 \\ \hline
+转移式方法 & 通过一系列 shift/reduce 等动作逐步构建依存树 & 基于栈和缓冲区的动作系统 \\ \hline
+约束式方法 & 定义结构约束, 搜索满足约束且得分最高的解 & 图搜索、整数规划等 \\ \hline
+\end{tabular}
+\endgroup
+\end{table}
+
+这四类方法的差异主要在于“结构从哪里来”:
+
+\begin{itemize}
+\item 生成式方法先假设语言结构如何生成, 再寻找最可能生成当前句子的结构.
+\item 判别式方法不显式建模生成过程, 而是直接学习从输入到结构或标签的映射.
+\item 转移式方法把构树过程拆成一连串动作, 例如移动词、建立左弧或右弧.
+\item 约束式方法先定义合法依存树应满足的约束, 再在约束空间中寻找最优解.
+\end{itemize}
+
+\begin{quote}
+\small
+\textbf{依存分析可以看作在候选关系中搜索合法且得分高的树}
+\par 节点: dep-input: 输入词序列; dep-cand: 候选 head / 关系; dep-score: 模型打分或动作决策; dep-constraint: 树约束检查; dep-tree: 依存树
+\par 边: dep-input -\textgreater{} dep-cand; dep-cand -\textgreater{} dep-score; dep-score -\textgreater{} dep-constraint; dep-constraint -\textgreater{} dep-tree
+\end{quote}
+
+依存句法分析的输出更适合表达词级关系,
+因此在信息抽取、关系抽取、问答和语义角色分析中经常作为上游特征.

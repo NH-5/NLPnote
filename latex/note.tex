@@ -1,0 +1,42 @@
+\documentclass[cn, nofont, black, simple]{elegantbook}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{fvextra}
+\usepackage{float}
+\usepackage{longtable}
+
+\setCJKmainfont[
+  BoldFont={STHeitiSC-Medium},
+  ItalicFont={STHeitiSC-Light},
+  BoldItalicFont={STHeitiSC-Medium}
+]{STHeitiSC-Light}
+\setCJKsansfont{STHeitiSC-Medium}
+\setCJKmonofont{STHeitiSC-Medium}
+
+\title{自然语言处理}
+\author{NH5}
+\date{\today}
+\cover{image/coverimage-fotor.jpg}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\mainmatter
+
+\include{chapters/01-Entropy}
+\include{chapters/02-FormalLanguageAutomaton}
+\include{chapters/03-HiddenMarkovModel}
+\include{chapters/04-ConditionalRandomField}
+\include{chapters/05-LanguageModel}
+\include{chapters/06-Corpus}
+\include{chapters/07-LMwithNeuralNetwork}
+\include{chapters/08-InformationRetrieval}
+\include{chapters/09-LexicalAnalysis}
+\include{chapters/10-SyntaxAnalysis}
+\include{chapters/11-SemanticAnalysis}
+\include{chapters/12-Exercises}
+
+\end{document}

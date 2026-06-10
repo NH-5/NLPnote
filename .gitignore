@@ -1,2 +1,12 @@
 # 输出的笔记
 note.pdf
+*.synctex.gz
+*.aux
+*.bbl
+*.bcf
+*.fls
+*.fdb_latexmk
+*.log
+*.out
+*.run.xml
+*.toc

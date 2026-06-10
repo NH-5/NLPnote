@@ -1,0 +1,398 @@
+\chapter{神经网络语言模型}
+
+
+\section{从 n-gram 到神经网络}
+
+
+传统 n-gram 语言模型的两个明显缺点:
+
+\begin{itemize}
+\item 高阶 n-gram 面临严重的数据稀疏问题.
+\item n-gram 忽略了词与词之间的相似性, 泛化能力不足.
+\end{itemize}
+
+这两个问题本质上都和“离散表示”有关.
+在 n-gram 中, 不同词通常被看作彼此独立的符号.
+即使两个词语义很接近, 例如“猫”和“狗”, 模型也不会自动共享它们的信息.
+
+神经网络语言模型(neural language model, NLM)试图通过两个关键思想克服上述问题:
+
+\begin{itemize}
+\item 用参数化神经网络代替简单的计数比值模型.
+\item 用分布式词表示(distributed representation)代替 one-hot 式离散表示.
+\end{itemize}
+
+因此, 神经网络语言模型可以概括为:
+
+神经网络语言模型是用神经网络来拟合条件概率
+\[
+P(w_t | w_1, \dots, w_{t-1})
+\]
+的一类语言模型.
+它仍然遵循语言模型“预测下一个词”或“估计句子概率”的基本目标,
+但不再依赖单纯的 n-gram 计数表.
+
+\section{神经网络语言模型的基本思想}
+
+
+\subsection{分布式词表示}
+
+
+在神经网络语言模型中, 每个词不再用一个巨大稀疏的 one-hot 向量表示,
+而是映射为一个低维稠密向量, 即词向量(word embedding):
+\[
+w mapsto e(w) \in R^d
+\]
+
+这样做的好处是:
+
+\begin{itemize}
+\item 维度大幅降低, 参数更可控.
+\item 语义相近的词可以拥有相近的向量表示.
+\item 模型可以在相似词之间共享统计信息.
+\end{itemize}
+
+例如, 若“猫”“狗”“兔子”在向量空间中彼此接近,
+则模型在见过“我养了一只猫”后, 对“我养了一只狗”也会更容易给出合理概率.
+这正是神经网络语言模型比传统 n-gram 更强的泛化来源之一.
+
+\subsection{参数化条件概率模型}
+
+
+传统 n-gram 往往直接使用
+\[
+P(w_t | h) = C(h, w_t) / C(h)
+\]
+这样的计数公式.
+神经网络语言模型则先把历史词序列映射为向量表示, 再通过神经网络输出下一个词的概率分布.
+
+一个抽象写法是:
+\[
+h_t = f_{\theta} (e(w_1), \dots, e(w_{t-1}))
+\]
+\[
+P_{\theta} (w_t | w_1, \dots, w_{t-1})
+  = \operatorname{softmax}(W h_t + b)
+\]
+
+其中:
+
+\begin{itemize}
+\item $e(w_i)$表示词向量.
+\item $f_{\theta}$表示神经网络编码函数, 可以是前馈网络、RNN、LSTM、GRU、Transformer 等.
+\item \texttt{softmax}把网络输出转换为合法的概率分布.
+\end{itemize}
+
+如果仍采用固定长度历史窗口, 也可以写成类似 n-gram 的形式:
+\[
+P_{\theta} (w_t | w_{t-n+1}, \dots, w_{t-1})
+\]
+区别在于:
+虽然这里也只看前面的若干个词, 但条件概率不是靠查表计数,
+而是靠共享参数的神经网络来估计.
+
+\subsection{为什么神经网络方法更强}
+
+
+和 n-gram 相比, 神经网络语言模型的优势主要体现在以下几点:
+
+\begin{itemize}
+\item 参数共享: 不同上下文会共用同一套网络参数, 不必为每个 n-gram 单独存一份参数.
+\item 相似性建模: 语义相近的词可通过向量空间距离体现相似性.
+\item 泛化能力更强: 对未见过但“结构相似”的组合, 往往能给出非零且较合理的概率.
+\item 上下文建模更灵活: 可以从固定窗口扩展到长距离上下文.
+\end{itemize}
+
+当然, 它也带来新的代价:
+
+\begin{itemize}
+\item 训练过程不再是简单计数, 而需要梯度下降优化.
+\item 对数据规模、算力和训练技巧要求更高.
+\item 模型可解释性通常弱于显式的 n-gram 计数.
+\end{itemize}
+
+\section{神经网络语言模型的训练目标}
+
+
+语言模型训练的核心仍然是极大化训练语料的似然,
+或等价地极大化对数似然.
+
+对一个句子
+\[
+W = (w_1, w_2, \dots, w_m)
+\]
+常见目标可写为:
+\[
+L(\theta)
+  = \sum_{t=1}^m \log P_{\theta} (w_t | w_1, \dots, w_{t-1})
+\]
+
+也就是说, 模型不断学习:
+
+\begin{itemize}
+\item 给真实下一个词更高概率.
+\item 给不合理候选词更低概率.
+\end{itemize}
+
+从优化角度看, 神经网络语言模型本质上是把“预测下一个词”转化为一个大规模多分类问题.
+训练完成后, 模型就获得了关于词序列规律的参数化表示.
+
+\section{预训练语言模型}
+
+
+进一步把神经网络语言模型推进到更现代的阶段, 即预训练语言模型
+(Pre-trained Language Model, PLM).
+
+\subsection{基本概念}
+
+
+随着深度神经网络理论、算力设备和互联网数据规模的发展,
+在海量数据上训练超大型神经网络模型成为可能.
+这类模型先在通用大语料上学习语言规律, 再服务于具体 NLP 任务.
+
+因此, 预训练语言模型可以理解为:
+
+\begin{itemize}
+\item 先在大规模通用语料上做语言模型训练, 得到通用参数.
+\item 再把这些参数作为基础, 迁移到具体下游任务中使用.
+\end{itemize}
+
+这是一种“先学通用语言知识, 再做任务适配”的思路.
+
+\subsection{两阶段流程}
+
+
+核心流程是:
+
+\begin{enumerate}
+\item[1.] 预训练阶段: 用海量语料完成语言模型训练任务, 得到预训练权重.
+\item[2.] 微调阶段: 在下游任务数据上继续训练, 形成任务特定权重.
+\end{enumerate}
+
+可以把它理解为:
+
+\begin{itemize}
+\item Step 1 学“语言共性”.
+\item Step 2 学“任务个性”.
+\end{itemize}
+
+这种范式的优势在于:
+
+\begin{itemize}
+\item 充分利用无标注或弱标注的大规模文本.
+\item 显著减少下游任务对人工标注数据的依赖.
+\item 让很多不同任务共享同一套底层语言知识.
+\end{itemize}
+
+\subsection{预训练模型的两种典型用法}
+
+
+两种常见使用方式:
+
+\begin{itemize}
+\item 作为生成器, 直接生成下游任务的目标答案.
+\item 作为编码器, 为下游任务提供高质量文本表示.
+\end{itemize}
+
+前者对应生成式使用方式, 例如对话、续写、翻译、摘要等.
+后者对应表征式使用方式, 例如分类、匹配、序列标注、检索等.
+
+\section{预训练语言模型代表: GPT}
+
+
+\subsection{基本定义}
+
+
+GPT 全称为 Generative Pre-Trained Transformer.
+概括为:
+
+\begin{itemize}
+\item 基于 Transformer 架构.
+\item 基于大规模语料训练.
+\item 属于单向语言模型.
+\end{itemize}
+
+这里的“单向”通常是指从左到右进行预测,
+即当前位置只能利用左侧历史信息.
+
+\subsection{训练方式}
+
+
+GPT 的核心目标仍是自回归语言建模(autoregressive language modeling).
+对句子
+\[
+W = (w_1, w_2, \dots, w_m)
+\]
+其常见训练目标可写为:
+\[
+L_{\operatorname{GPT}}(\theta)
+  = \sum_{t=1}^m \log P_{\theta} (w_t | w_1, \dots, w_{t-1})
+\]
+
+这意味着:
+
+\begin{itemize}
+\item 已知前面的词.
+\item 预测当前位置的词.
+\item 再继续预测下一个词.
+\end{itemize}
+
+因此 GPT 特别适合生成任务.
+因为它的训练目标和“逐词生成文本”的推理过程高度一致.
+
+\subsection{GPT 的特点}
+
+
+\begin{itemize}
+\item 使用 Transformer 作为主干网络, 擅长建模长距离依赖.
+\item 训练目标直接对应“下一个词预测”.
+\item 更偏向生成式任务.
+\item 通过大规模预训练获得较强的通用语言能力.
+\end{itemize}
+
+\section{预训练语言模型代表: BERT}
+
+
+\subsection{基本定义}
+
+
+BERT 全称为 Bidirectional Encoder Representations from Transformers.
+概括为:
+
+\begin{itemize}
+\item 基于双向 Transformer 架构.
+\item 基于大规模语料训练.
+\item 采用“掩码训练”和“下一句预测训练”两种机制.
+\item 属于双向语言模型.
+\end{itemize}
+
+所谓“双向”, 是指一个词的表示可以同时利用左侧和右侧上下文信息.
+
+\subsection{掩码语言模型}
+
+
+BERT 的核心创新之一是 Masked Language Model, MLM.
+做法是:
+
+\begin{itemize}
+\item 先随机遮盖句子中的部分词.
+\item 再要求模型根据上下文恢复被遮盖的词.
+\end{itemize}
+
+若把被遮盖位置集合记为$M$, 则其目标可抽象写为:
+\[
+L_{\operatorname{MLM}}(\theta)
+  = \sum_{t \in M} \log P_{\theta} (w_t | W_{\operatorname{masked}})
+\]
+
+这里模型不是简单地只看左上下文,
+而是利用该词两侧的语境共同进行预测.
+
+\subsection{下一句预测}
+
+
+还提到了“下一句预测”(Next Sentence Prediction, NSP).
+它的目的是让模型学习句子间关系, 例如:
+
+\begin{itemize}
+\item 两个句子是否前后相邻.
+\item 两个句子是否构成自然连贯的上下文.
+\end{itemize}
+
+这一机制使 BERT 不仅能学习词级上下文,
+还能够在一定程度上学习句子级语义关系.
+
+\subsection{BERT 的特点}
+
+
+\begin{itemize}
+\item 更强调双向上下文表示.
+\item 更适合做编码和表征学习.
+\item 在分类、匹配、抽取、序列标注等任务上非常有效.
+\item 训练阶段不直接按自然生成顺序逐词输出, 因而原生生成能力不如 GPT 式模型直接.
+\end{itemize}
+
+\section{GPT 与 BERT 的对比}
+
+
+二者都属于预训练语言模型, 但思路并不相同.
+
+\begin{enumerate}
+\item[1.] 上下文方向不同
+\end{enumerate}
+
+\begin{itemize}
+\item GPT 是单向建模, 主要利用左上下文.
+\item BERT 是双向建模, 同时利用左右上下文.
+\end{itemize}
+
+\begin{enumerate}
+\item[2.] 训练目标不同
+\end{enumerate}
+
+\begin{itemize}
+\item GPT 采用自回归的下一个词预测.
+\item BERT 采用掩码语言模型, 并配合下一句预测.
+\end{itemize}
+
+\begin{enumerate}
+\item[3.] 典型用途不同
+\end{enumerate}
+
+\begin{itemize}
+\item GPT 更偏生成.
+\item BERT 更偏编码与理解.
+\end{itemize}
+
+\begin{enumerate}
+\item[4.] 输出方式不同
+\end{enumerate}
+
+\begin{itemize}
+\item GPT 的训练方式天然适合逐步生成序列.
+\item BERT 更适合作为特征提取器或编码器接到具体任务头上.
+\end{itemize}
+
+\section{神经网络语言模型与传统语言模型的关系}
+
+
+需要注意的是, 神经网络语言模型并没有改变语言模型的根本任务,
+它只是改变了“如何估计条件概率”的方式.
+
+两类模型的共同点:
+
+\begin{itemize}
+\item 都是在建模词序列的概率分布.
+\item 都可以用于句子打分、生成、排序、预测等任务.
+\end{itemize}
+
+两类模型的主要差别:
+
+\begin{itemize}
+\item n-gram 依赖显式计数与局部马尔可夫假设.
+\item 神经网络语言模型依赖连续向量表示与参数化函数逼近.
+\end{itemize}
+
+从发展脉络上看, 可以粗略理解为:
+
+\begin{itemize}
+\item n-gram 解决了“如何把语言模型做成可计算模型”的问题.
+\item 神经网络语言模型进一步解决了“如何提升泛化与表示能力”的问题.
+\item 预训练语言模型则把神经网络语言模型推进到“大规模通用基础模型”的阶段.
+\end{itemize}
+
+\section{小结}
+
+
+本章的主线可以概括为:
+
+\begin{enumerate}
+\item[1.] n-gram 模型存在数据稀疏和泛化不足的问题.
+\item[2.] 神经网络语言模型通过分布式表示和参数共享缓解这些问题.
+\item[3.] 预训练语言模型把这种思想扩展到海量语料和超大规模参数.
+\item[4.] GPT 代表单向生成式预训练模型.
+\item[5.] BERT 代表双向编码式预训练模型.
+\end{enumerate}
+
+因此, “语言模型 + 神经网络”并不是简单相加,
+而是语言建模方法从离散统计走向连续表示、从局部计数走向深层参数化建模的重要转变.

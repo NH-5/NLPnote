@@ -1,0 +1,1176 @@
+\chapter{信息检索}
+
+
+\section{从应用场景理解信息检索}
+
+
+信息检索(information retrieval, IR)最直观的场景是:
+给定一个很大的文本库, 其中保存了大量文本, 例如新闻报道、网页、论文、图书记录等.
+用户输入一个查询条件, 系统需要快速、准确地从文本库中找出与该查询相关的文本.
+
+这类问题看似简单, 但实际包含几个关键困难:
+
+\begin{itemize}
+\item 文本库规模很大, 不能靠人工逐篇阅读.
+\item 用户查询通常很短, 而文档内容很长.
+\item 查询词和文档词未必完全相同, 例如“电脑”和“计算机”.
+\item 用户真正需要的是“相关内容”, 而不是简单包含某个字面词的内容.
+\item 返回结果还要排序, 因为用户通常只看靠前的少量结果.
+\end{itemize}
+
+因此, 信息检索系统的目标可以概括为:
+
+给定文档库$D$和用户查询$q$,
+系统返回一个按相关性排序的文档列表
+\[
+[d_1, d_2, \dots]
+\]
+其中越靠前的文档应越能满足用户的信息需求.
+
+\subsection{一个基本流程}
+
+
+信息检索过程拆成四个环节:
+
+\begin{enumerate}
+\item[1.] 文本预处理.
+\item[2.] 文本标引.
+\item[3.] 相似度评估.
+\item[4.] 排序返回.
+\end{enumerate}
+
+可以把它理解为一条流水线:
+
+\begin{itemize}
+\item 先把原始文本清洗成更适合计算的形式.
+\item 再把文档和查询都转成统一的数学表示.
+\item 然后计算查询和每篇候选文档之间的相关度.
+\item 最后按相关度从高到低返回前若干篇文档.
+\end{itemize}
+
+信息检索的核心不只是“找包含查询词的文档”,
+而是要在文档表达、查询表达和相关度计算之间建立一个可计算的模型.
+
+\subsection{文本预处理}
+
+
+对中文文本来说, 预处理通常包括:
+
+\begin{itemize}
+\item 中文分词.
+\item 词性标注.
+\item 虚词或停用词过滤.
+\end{itemize}
+
+例如句子:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+我们在上自然语言处理课程。
+\end{Verbatim}
+
+经过分词后可以得到:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+我们 / 在 / 上 / 自然语言处理 / 课程 / 。
+\end{Verbatim}
+
+再结合词性标注和过滤策略, 可以去除一部分对主题区分作用较弱的词.
+课件中的例子强调: 可去除掉动词、名词、副词、形容词之外的其他所有词.
+实际系统中是否保留某类词, 取决于任务目标和模型设计.
+
+文本预处理的意义在于降低噪声, 让后续的标引和相似度计算集中在更有区分力的词项上.
+
+\subsection{文本标引}
+
+
+标引(indexing)是把文档或查询转换成可计算表示的过程.
+最常见的做法是把文本表示为词项(term)及其权重组成的向量.
+
+一般要解决三个问题:
+
+\begin{itemize}
+\item 特征选择: 哪些词项可以进入特征集.
+\item 权重计算: 每个词项在当前文档中有多重要.
+\item 向量编码: 如何把词项及权重组织成向量.
+\end{itemize}
+
+一种简单的特征选择方法是基于频率:
+统计词项在文档库中出现的频次, 对全部词项排序, 选择频次达到一定阈值的词项作为特征集.
+
+但单纯频率并不总是可靠.
+例如“的”“是”“在”这类词频很高, 却往往不能代表文档主题.
+因此信息检索中常用 TF-IDF 来综合刻画词项的重要性.
+
+\subsection{TF-IDF 权重}
+
+
+TF-IDF(term frequency-inverse document frequency)是一种常用加权方法.
+它同时考虑两个因素:
+
+\begin{itemize}
+\item TF: 词项在当前文档中出现得越多, 对该文档越重要.
+\item IDF: 词项在整个文档集合中出现得越少, 区分能力越强.
+\end{itemize}
+
+设$t$为词项, $d$为文档, $D$为文档集合.
+常见写法是:
+\[
+\operatorname{tf\,idf}(t, d)
+  = \operatorname{tf}(t, d) \times \operatorname{idf}(t)
+\]
+其中:
+\[
+\operatorname{idf}(t) = \log(N / \operatorname{df}(t))
+\]
+
+$N$表示文档总数, $\operatorname{df}(t)$表示包含词项$t$的文档数.
+如果某个词在当前文档中出现很多, 但在几乎所有文档中都出现,
+那么它的 TF 高而 IDF 低, 总权重不会太大.
+如果某个词既在当前文档中频繁出现, 又只出现在少量文档里,
+它就更可能是该文档的主题性词项.
+
+\subsection{向量空间表示}
+
+
+完成词项选择和权重计算后, 每篇文档都可以表示为一个向量:
+\[
+d = (w_1, w_2, \dots, w_n)
+\]
+其中$w_i$表示第$i$个词项在文档中的权重.
+
+查询也可以用同样方式表示:
+\[
+q = (v_1, v_2, \dots, v_n)
+\]
+
+这样, 文档检索问题就转化成向量相似度计算问题.
+查询向量和文档向量越接近, 文档就越可能相关.
+
+常用的相似度包括:
+
+\begin{itemize}
+\item 内积: 直接计算两个向量对应维度乘积之和.
+\item 余弦相似度: 关注两个向量方向是否接近.
+\item Jaccard 系数: 更常用于集合形式的特征表示.
+\end{itemize}
+
+余弦相似度是 VSM 中最常见的选择:
+\[
+\operatorname{cos}(d, q)
+  =
+  \frac{\sum_{i=1}^n w_{i,d} w_{i,q}}
+       {\sqrt{\sum_{i=1}^n w_{i,d}^2}
+        \sqrt{\sum_{i=1}^n w_{i,q}^2}}
+\]
+
+它的值越接近$1$, 表示两个向量方向越接近, 文档和查询越相似.
+
+\section{信息检索概述}
+
+
+\subsection{产生背景}
+
+
+信息检索技术的出现和发展, 主要来自三方面需求:
+
+\begin{itemize}
+\item 信息过载: 文档、网页、音视频等数据规模快速增长.
+\item 需求更高: 用户希望快速找到真正有用的信息, 而不是只得到大量候选结果.
+\item 用户下沉: 检索系统面向普通用户, 查询表达通常不专业、不规范.
+\end{itemize}
+
+因此, 信息检索不是简单的数据查询.
+它面对的是大规模、非结构化或半结构化内容, 以及不够精确的用户需求表达.
+
+\subsection{定义}
+
+
+信息检索译自 Information Retrieval, 简称 IR.
+定义可以概括为:
+
+信息检索是从大规模非结构化数据集合中找出满足用户信息需求资料的过程,
+这些数据通常以文本形式存在.
+
+形式化地说:
+
+\begin{itemize}
+\item 给定一个文档库$D$.
+\item 用户输入一个表达信息需求的查询$q$.
+\item 系统返回一个包含所需信息的文档列表$[d_1, d_2, \dots]$.
+\end{itemize}
+
+这里有两个关键词:
+
+\begin{itemize}
+\item 满足信息需求: 关注语义层面的相关性.
+\item 文档列表: 通常不是单一答案, 而是多个候选文档的排序结果.
+\end{itemize}
+
+\subsection{应用}
+
+
+IR 是很多系统的底层技术, 典型应用包括:
+
+\begin{itemize}
+\item 搜索引擎.
+\item 情报跟踪.
+\item 内容安全.
+\item 舆情分析.
+\item 文献检索.
+\item 问答系统.
+\end{itemize}
+
+从 NLP 的角度看, 信息检索承担了“从大规模文本中定位相关证据”的功能.
+很多下游任务, 例如问答、摘要和知识发现, 都需要先检索到相关材料.
+
+\subsection{一般框架}
+
+
+一个信息检索系统通常包含:
+
+\begin{itemize}
+\item 文档库.
+\item 用户查询.
+\item 文档表达.
+\item 查询表达.
+\item 相关度评估.
+\item 文档排序.
+\item 相关文档列表.
+\end{itemize}
+
+其中最核心的三个环节是:
+
+\begin{enumerate}
+\item[1.] Indexing: 建立文档和查询的统一数学表示.
+\item[2.] Relevance Measuring: 计算查询表达和候选文档表达之间的相关度.
+\item[3.] Relevance Sorting: 基于相关度等指标对候选文档排序.
+\end{enumerate}
+
+这三个环节分别回答:
+
+\begin{itemize}
+\item 如何表示.
+\item 如何比较.
+\item 如何返回.
+\end{itemize}
+
+因此, 信息检索模型的差异, 本质上就是这些环节的建模方式不同.
+
+\subsection{好的检索系统要解决的问题}
+
+
+课件列出了三个典型问题:
+
+\begin{itemize}
+\item 检索出来的内容可能和用户想要的资料毫不相关.
+\item 用户需要的内容可能被排在很靠后的位置.
+\item 排在靠前位置的内容可能高度雷同.
+\end{itemize}
+
+第一个问题对应“相关性”,
+第二个问题对应“排序质量”,
+第三个问题对应“多样性”.
+现代搜索系统通常要同时优化这几个目标.
+
+\section{信息检索基本模型}
+
+
+信息检索模型是信息检索系统中核心逻辑、规则和算法的统称.
+重点介绍四类基本模型:
+
+\begin{itemize}
+\item 布尔模型.
+\item 向量空间模型.
+\item 语言模型.
+\item 概率模型.
+\end{itemize}
+
+这些模型都在解决同一个问题:
+如何判断一篇文档是否满足一个查询, 以及应把它排在什么位置.
+
+\section{布尔模型}
+
+
+\subsection{基本思想}
+
+
+布尔模型(Boolean model)是最早的 IR 模型之一, 也是应用非常广泛的模型.
+它把文档表示为关键词集合, 把查询表示为关键词之间的布尔组合.
+
+常见布尔操作包括:
+
+\begin{itemize}
+\item AND: 与, 要求条件同时满足.
+\item OR: 或, 满足任一条件即可.
+\item NOT: 非, 排除某类文档.
+\end{itemize}
+
+文档是否被返回, 取决于它是否满足布尔查询式.
+因此布尔模型的相关度评估本质上是二值匹配:
+
+\begin{itemize}
+\item 满足查询式: 返回.
+\item 不满足查询式: 不返回.
+\end{itemize}
+
+\subsection{技术框架}
+
+
+布尔模型可以概括为:
+
+\begin{itemize}
+\item 文档标引: 每个文档表示为关键词集合.
+\item 查询式标引: 查询表示为关键词的布尔组合.
+\item 相关度评估: 判断文档是否满足查询式.
+\item 文档排序: 本质上不排序, 所有匹配文档地位相同.
+\end{itemize}
+
+例如查询:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+病毒 AND (计算机 OR 电脑) AND NOT 医
+\end{Verbatim}
+
+对三个文档:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+D1: 据报道计算机病毒最近猖獗
+D2: 小王虽然是学医的, 但对研究电脑病毒也感兴趣
+D3: 计算机程序发现了艾滋病病毒传播途径
+\end{Verbatim}
+
+按照布尔条件:
+
+\begin{itemize}
+\item D1 同时包含“病毒”和“计算机”, 且不包含“医”, 因而会被检索到.
+\item D2 虽包含“电脑”和“病毒”, 但也包含“医”, 被 NOT 条件排除.
+\item D3 包含“计算机”和“病毒”, 且不含“医”, 形式上也可能被匹配.
+\end{itemize}
+
+这个例子说明, 布尔模型非常依赖字面条件, 并不真正理解“计算机病毒”和“艾滋病病毒”的语义差异.
+
+\subsection{优点}
+
+
+布尔模型的优点包括:
+
+\begin{itemize}
+\item 查询式简单, 普通用户容易理解基本用法.
+\item 计算效率高, 适合大规模文档集合.
+\item 可扩展性较好, 专业用户能写复杂布尔表达式实现精确检索.
+\item 工程实现成熟, 很多检索系统仍支持布尔查询.
+\end{itemize}
+
+例如 Lucene 这类开源检索系统就支持大量布尔式查询机制.
+
+\subsection{缺点}
+
+
+布尔模型的主要问题是:
+
+\begin{itemize}
+\item 不支持部分匹配, 要么满足, 要么不满足.
+\item 很难对输出结果进行细粒度排序.
+\item 不考虑关键词权重, 出现一次和出现多次的关键词影响相同.
+\item 对同义词、多义词和语义相关性处理较弱.
+\end{itemize}
+
+因此, 布尔模型适合精确过滤,
+但不适合作为唯一机制解决排序型信息检索问题.
+
+\section{向量空间模型}
+
+
+\subsection{基本定义}
+
+
+向量空间模型(Vector Space Model, VSM)由 Gerald Salton 等人在 20 世纪 70 年代提出,
+并成功应用于 SMART 文本检索系统.
+
+它的核心思想是:
+
+把文本内容简化为高维线性空间中的向量.
+
+在 VSM 中:
+
+\begin{itemize}
+\item 每个维度对应一个索引项.
+\item 每篇文档对应一个权重向量.
+\item 查询也被表示为同一空间中的向量.
+\item 文档和查询的相关度由向量相似度给出.
+\end{itemize}
+
+\subsection{基本概念}
+
+
+VSM 中有几个核心概念:
+
+\begin{itemize}
+\item 文档$D$: 泛指一篇文档或文档中的一个片段.
+\item 索引项$t$: 能代表文档内容特点的基本语言单位, 如字、词、短语、同义词集或语义概念.
+\item 索引项权重$w_{t,k}$: 词项$t_k$代表文档$D$的能力大小.
+\item 相似度$S$: 两个文档或文档与查询之间内容相关程度的量化值.
+\end{itemize}
+
+一篇文档可以表示为:
+\[
+d_j = (w_{1,j}, w_{2,j}, \dots, w_{n,j})
+\]
+
+其中$n$是索引项总数, $w_{i,j}$表示第$i$个索引项在第$j$篇文档中的权重.
+
+\subsection{三个关键点}
+
+
+VSM 的效果主要取决于三个关键点:
+
+\begin{enumerate}
+\item[1.] 索引项选择: 怎样确定文档中哪些词项是重要词项.
+\item[2.] 权重计算: 怎样确定词项在某篇文档中的重要程度.
+\item[3.] 相似度评价: 怎样确定文档与查询之间的相似度.
+\end{enumerate}
+
+它们分别对应“特征是什么”“特征有多重要”“两个对象有多像”.
+
+\subsection{索引项选择}
+
+
+索引项选择可以考虑:
+
+\begin{itemize}
+\item 高频出现的词项.
+\item 与领域相关的词项.
+\item 经过归并后的同义或近义词项.
+\end{itemize}
+
+例如在科技文献检索中, “计算机”和“电脑”可能应归并为同一个索引项.
+如果不归并, 用户查询“电脑”时可能漏掉只写“计算机”的文档.
+
+但索引项归并并不容易, 因为它要求系统知道词义关系.
+这也为后面的 LSI 模型埋下伏笔:
+能否不完全依赖人工词典, 而是从“词项-文档”矩阵中自动学习潜在语义结构.
+
+\subsection{索引项权重}
+
+
+VSM 中最常用的权重计算就是 TF-IDF.
+直观理解是:
+
+\begin{itemize}
+\item 在当前文档中出现频率越高, 越能代表该文档.
+\item 在所有文档中越少见, 越有区分能力.
+\end{itemize}
+
+因此:
+\[
+w_{t,d} = \operatorname{tf}(t,d) \times \log(N / \operatorname{df}(t))
+\]
+
+在实际系统中还会加入平滑、归一化和长度校正,
+避免长文档因为词多而天然获得更高分.
+
+\subsection{相似度评价}
+
+
+常见相似度有三类:
+
+\begin{enumerate}
+\item[1.] 内积
+\end{enumerate}
+\[
+\operatorname{score}(d, q) = d \cdot q
+\]
+
+\begin{enumerate}
+\item[2.] 余弦相似度
+\end{enumerate}
+\[
+\operatorname{cos}(d, q)
+  = \frac{d \cdot q}{\sqrt{d \cdot d}\sqrt{q \cdot q}}
+\]
+
+\begin{enumerate}
+\item[3.] Jaccard 系数
+\end{enumerate}
+\[
+J(A, B) = \frac{|A \cap B|}{|A \cup B|}
+\]
+
+在词项权重向量中, 余弦相似度最常见,
+因为它能弱化文档长度差异, 更关注向量方向.
+
+\subsection{VSM 的优点}
+
+
+和布尔模型相比, VSM 的优点包括:
+
+\begin{itemize}
+\item 查询式更接近日常自然语言, 不要求用户写复杂布尔条件.
+\item 支持部分匹配, 查询条件更自由.
+\item 利用词项权重刻画文档, 文档表示更细致.
+\item 能根据词项分布特征度量文档和查询的相似度.
+\item 可以按相似度对返回结果排序.
+\end{itemize}
+
+因此, VSM 更适合大多数面向普通用户的搜索场景.
+
+\subsection{VSM 的不足}
+
+
+VSM 的基本假设也有明显缺陷:
+
+\begin{itemize}
+\item 索引项之间被认为相互独立, 这不符合语言事实.
+\item 一词多义会引入错误匹配.
+\item 一义多词会造成相关文档遗漏.
+\item 向量空间维度很高, 可能存在噪声和稀疏问题.
+\end{itemize}
+
+例如“处理”既可以表示“处理自然语言”, 也可以表示“处理旧家具”或“处理叛徒”.
+如果只看词项共现, 系统很难区分这些语义.
+
+\section{基于语言模型的信息检索}
+
+
+\subsection{语言模型回顾}
+
+
+语言模型(language model)用于刻画真实语言中词与词之间的联系规律.
+它可以估计一个词序列在真实语言世界中出现的可能性.
+
+在信息检索中, 可以换一个角度理解:
+
+每篇文档都可以看作一个能够生成词语的概率模型.
+
+如果某篇文档的语言模型很可能生成用户查询,
+那么这篇文档就可能与查询相关.
+
+\subsection{基本流程}
+
+
+基于语言模型的信息检索通常包括:
+
+\begin{enumerate}
+\item[1.] 为每个文档建立文档语言模型.
+\item[2.] 把查询看作由某个文档语言模型抽样生成的样本.
+\item[3.] 计算每个文档模型生成查询的概率.
+\item[4.] 按概率大小对文档排序.
+\end{enumerate}
+
+设文档$d$对应语言模型$M_d$, 查询为
+\[
+q = (t_1, t_2, \dots, t_m)
+\]
+若采用一元语言模型, 可写为:
+\[
+P(q | M_d) = \prod_{i=1}^m P(t_i | M_d)
+\]
+
+概率越高, 表示文档$d$越可能生成该查询, 因而越应靠前返回.
+
+\subsection{一个例子}
+
+
+假设只有两个文本, 分别构造一元语言模型$\operatorname{LM}_1$和$\operatorname{LM}_2$.
+
+若查询为:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+abacaad
+\end{Verbatim}
+
+则可分别计算:
+\[
+P(q | \operatorname{LM}_1)
+  = P(a|\operatorname{LM}_1) P(b|\operatorname{LM}_1) \dots P(d|\operatorname{LM}_1)
+\]
+\[
+P(q | \operatorname{LM}_2)
+  = P(a|\operatorname{LM}_2) P(b|\operatorname{LM}_2) \dots P(d|\operatorname{LM}_2)
+\]
+
+课件中的计算结果是第二个概率更高,
+因此系统返回文本 2 作为检索结果.
+
+语言模型方法的关键点在于:
+排序依据从“向量距离”转成了“生成查询的概率”.
+
+\subsection{平滑问题}
+
+
+和前面语言模型章节一样, 检索中的语言模型也会遇到零概率问题.
+如果查询中某个词没有在文档$d$中出现, 直接使用 MLE 会导致
+\[
+P(q | M_d) = 0
+\]
+
+但这并不一定说明文档无关.
+因此实际系统必须使用平滑, 例如把文档模型和全局集合模型混合:
+\[
+P(t | M_d)
+  = \lambda P_{\operatorname{MLE}}(t | d)
+    + (1-\lambda) P(t | C)
+\]
+其中$C$表示整个文档集合.
+
+这可以看作在“当前文档证据”和“全局语言背景”之间做折中.
+
+\section{概率模型}
+
+
+\subsection{基本思想}
+
+
+概率模型直接把“文档是否与查询相关”看成概率判断问题.
+
+给定查询$Q$和候选文档$D$,
+设$R$表示$D$与$Q$相关, $\bar{R}$表示不相关.
+模型希望估计:
+\[
+P(R | D, Q)
+\]
+和
+\[
+P(\bar{R} | D, Q)
+\]
+
+如果相关概率更高, 则应返回该文档;
+排序时也可以按相关概率从高到低排列.
+
+\subsection{二值独立模型}
+
+
+经典概率检索模型常使用二值独立假设.
+对每个词项$t_i$, 只关心它是否出现在文档中,
+并假设不同词项在给定相关性条件下相互独立.
+
+训练集中可统计:
+
+\begin{itemize}
+\item $N$: 文档总数.
+\item $R_i$: 与查询相关的文档数.
+\item $n_i$: 包含词项$t_i$的文档数.
+\item $r_i$: 相关文档中包含词项$t_i$的文档数.
+\end{itemize}
+
+于是可以估计:
+
+\begin{itemize}
+\item 相关文档中出现$t_i$的概率.
+\item 不相关文档中出现$t_i$的概率.
+\end{itemize}
+
+最终文档得分可以理解为多个词项证据的累积.
+若某个词项更常出现在相关文档中, 而较少出现在不相关文档中,
+它就应给文档相关性带来更强正向贡献.
+
+\subsection{与其他模型的关系}
+
+
+概率模型的优势是目标直接: 它直接建模“相关/不相关”.
+但它通常需要相关性标注或反馈信息来估计参数.
+在没有足够训练数据时, 参数估计会比较困难.
+
+可以粗略对比:
+
+\begin{itemize}
+\item 布尔模型强调规则匹配.
+\item VSM 强调向量相似度.
+\item 语言模型强调生成查询的概率.
+\item 概率模型强调文档与查询相关的概率.
+\end{itemize}
+
+这些模型在现代检索系统中并非互斥,
+实际系统常会把多种得分特征组合起来使用.
+
+\section{LSI 模型}
+
+
+\subsection{问题的引出}
+
+
+VSM 的一个关键问题是只在词项表层上建模.
+自然语言中存在:
+
+\begin{itemize}
+\item 一词多义(polysemy).
+\item 一义多词(synonymy).
+\end{itemize}
+
+一词多义会引入不需要的结果.
+例如检索词为“处理”时, 可能匹配到:
+
+\begin{itemize}
+\item 什么地方处理旧家具?
+\item 你去把那个叛徒处理了.
+\item 处理自然语言很难.
+\end{itemize}
+
+这些句子都包含“处理”, 但语义差异很大.
+
+一义多词则会遗漏本来相关的结果.
+例如“互联网”“万维网”“因特网”在很多场景中语义接近,
+但如果只按字面词项匹配, 查询其中一个词时可能漏掉另外两种表达.
+
+LSI(latent semantic indexing, 隐性语义索引)试图缓解这些问题.
+
+\subsection{基本直觉}
+
+
+LSI 的直觉是:
+
+虽然我们看到的是词项和文档的表层共现矩阵,
+但这些表层现象背后可能存在更少量、更本质的语义维度.
+
+例如若干文档同时出现“互联网”“网速”“路由”“冲浪”等词,
+系统可以推测它们可能属于某个网络相关语义维度.
+即使某两篇文档没有共享完全相同的词,
+只要它们在潜在语义维度上接近, 也可以被认为相关.
+
+因此 LSI 要解决的问题是:
+
+\begin{itemize}
+\item 如何自动得到潜在语义维度.
+\item 如何建立文档和语义维度之间的关系.
+\item 如何建立词项和语义维度之间的关系.
+\end{itemize}
+
+如果完全依赖人工语言学知识来定义这些语义维度, 工作量太大.
+因此 LSI 使用矩阵分解方法从大量“词项-文档”关系中自动学习.
+
+\subsection{词项-文档矩阵}
+
+
+设原始矩阵$C$为“词项-文档”矩阵:
+
+\begin{itemize}
+\item 行对应词项.
+\item 列对应文档.
+\item 元素表示某词项在某文档中的出现情况或权重.
+\end{itemize}
+
+若有$m$个词项、$n$篇文档, 则:
+\[
+C \in \mathbb{R}^{m \times n}
+\]
+
+在基本 VSM 中, 每一列就是一篇文档的词项向量.
+LSI 则进一步对这个矩阵做奇异值分解.
+
+\subsection{奇异值分解}
+
+
+奇异值分解(Singular Value Decomposition, SVD)把矩阵分解为:
+\[
+C = U \Sigma V^T
+\]
+
+其中:
+
+\begin{itemize}
+\item $C$: 原始词项-文档矩阵.
+\item $U$: 词项矩阵.
+\item $\Sigma$: 奇异值矩阵.
+\item $V^T$: 文档矩阵.
+\end{itemize}
+
+经过 SVD 分解后:
+
+\begin{itemize}
+\item $V^T$可以理解为用潜在语义维度对文档进行标引.
+\item $U$可以理解为词项与潜在语义维度之间的关联.
+\item $\Sigma$中的奇异值表示各语义维度的重要性.
+\end{itemize}
+
+严格地说, “语义维度”是为了提高解释性而加上的理解方式.
+SVD 本身只是数学分解, 但分解结果常能捕捉到有用的主题或语义结构.
+
+\subsection{矩阵含义}
+
+
+\begin{enumerate}
+\item[1.] $C$矩阵
+\end{enumerate}
+
+$C$是分解前的原始词项-文档矩阵.
+它的行数等于词表长度, 列数等于文档数量.
+每个元素表示某词项和某文档之间的表层关联.
+
+\begin{enumerate}
+\item[2.] $U$矩阵
+\end{enumerate}
+
+$U$矩阵的行数与原始词项数相等.
+从行向量角度看, 每行对应一个词项.
+从列向量角度看, 每列可解释为一个潜在语义维度.
+
+矩阵元素$u_{i,j}$表示:
+
+第$i$个词项与第$j$个语义维度之间的关系强弱.
+
+因此, 每个词项都可以被表示成潜在语义空间中的向量.
+
+\begin{enumerate}
+\item[3.] $V^T$矩阵
+\end{enumerate}
+
+$V^T$矩阵的列数与原始文档数相等.
+从列向量角度看, 每列对应一篇文档.
+从行向量角度看, 每行可解释为一个潜在语义维度.
+
+矩阵元素$v_{i,j}$表示:
+
+第$j$篇文档与第$i$个语义维度之间的关系强弱.
+
+因此, 每篇文档也可以被表示成潜在语义空间中的向量.
+
+\begin{enumerate}
+\item[4.] $\Sigma$矩阵
+\end{enumerate}
+
+$\Sigma$是对角矩阵.
+对角线上的元素称为奇异值, 并按从大到小排列.
+奇异值越大, 对应语义维度对重构原始矩阵的贡献越大.
+
+如果把较小的奇异值置为$0$,
+就可以忽略影响较弱的语义维度, 实现降维和噪声过滤.
+
+\subsection{截断 SVD}
+
+
+在实际使用中, 往往只保留前$k$个最大的奇异值:
+\[
+C \approx C_k = U_k \Sigma_k V_k^T
+\]
+
+这称为截断奇异值分解(truncated SVD).
+它的作用包括:
+
+\begin{itemize}
+\item 降低维度.
+\item 去除噪声.
+\item 用较少潜在语义维度近似原始词项-文档矩阵.
+\end{itemize}
+
+基于 LSI 的文档标引大致步骤是:
+
+\begin{enumerate}
+\item[1.] 对词项-文档矩阵进行 SVD 分解.
+\item[2.] 保留前$k$个主要语义维度, 得到低维文档表示.
+\item[3.] 将查询映射到同一低维空间.
+\item[4.] 计算查询和各文档低维表示之间的相似度.
+\item[5.] 按相似度输出文档结果.
+\end{enumerate}
+
+\subsection{LSI 的优势}
+
+
+LSI 相对基本 VSM 的优势主要有三点.
+
+\begin{enumerate}
+\item[1.] 过滤噪声
+\end{enumerate}
+
+较小奇异值通常对应较弱或较细碎的变化.
+将这些奇异值置为$0$, 可以忽略次要语义维度, 保留主要结构.
+
+课件用图像例子说明:
+若两张花朵图像只在颜色上存在枝节差异,
+过滤颜色相关维度后, 更容易看到它们在“花朵”这一主要内容上的相似性.
+
+\begin{enumerate}
+\item[2.] 缓解一义多词
+\end{enumerate}
+
+如果“计算机”和“电脑”经常出现在相似文档环境中,
+SVD 可能把它们映射到接近的潜在语义维度上.
+这样, 即使两篇文档表层词不同, 也可能在语义空间中高度相似.
+
+\begin{enumerate}
+\item[3.] 缓解一词多义
+\end{enumerate}
+
+多义词通常和多种不同语义维度都有联系.
+在矩阵分解过程中, 它对某个单一语义维度的定义贡献可能被削弱,
+从而降低多义词对检索结果的干扰.
+
+\subsection{LSI 的局限}
+
+
+LSI 虽然能缓解 VSM 的部分问题, 但也有代价:
+
+\begin{itemize}
+\item SVD 计算成本较高.
+\item 潜在语义维度不一定容易解释.
+\item 新文档或新词加入后, 矩阵更新不如传统倒排索引方便.
+\item 它仍主要基于线性代数结构, 对复杂语义和上下文变化表达有限.
+\end{itemize}
+
+因此 LSI 更像是从词项向量到低维语义表示的一次重要过渡,
+而不是现代语义检索的终点.
+
+\section{信息检索系统评测}
+
+
+评测的目标是判断一个检索系统返回的结果是否满足用户需求.
+与分类任务不同, 检索任务往往关心“排序列表”的质量.
+
+\subsection{Precision at N}
+
+
+\texttt{P@N}表示前$N$个返回结果中的正确率:
+\[
+\text{P@N} = (\text{前 N 个结果中的相关文档数}) / N
+\]
+
+对于搜索引擎, 大量用户只关注前一两页结果,
+因此\texttt{P@10}、\texttt{P@20}往往比全列表指标更符合使用习惯.
+
+\subsection{R-Precision}
+
+
+设某个查询对应的相关文档总数为$R$.
+R-Precision 计算检索结果前$R$篇文档中相关文档所占比例:
+\[
+\operatorname{R\text{-}Precision}
+  = (\text{前}R\text{篇中的相关文档数}) / R
+\]
+
+它把评价截断点设为该查询的真实相关文档数,
+因此不同查询会有不同的评价深度.
+
+\subsection{Precision-Recall 曲线}
+
+
+召回率(recall)表示系统找回了多少相关文档:
+\[
+\operatorname{Recall}
+  = (\text{检索出的相关文档数}) / (\text{全部相关文档数})
+\]
+
+正确率(precision)表示返回结果中有多少是相关的:
+\[
+\operatorname{Precision}
+  = (\text{检索出的相关文档数}) / (\text{检索出的文档数})
+\]
+
+Precision-Recall 曲线通常在召回率为
+\[
+0%, 10%, 20%, \dots, 100%
+\]
+等位置计算对应正确率, 再绘制曲线.
+
+一般来说:
+
+\begin{itemize}
+\item 召回率提高时, 系统需要返回更多文档.
+\item 返回更多文档后, 正确率往往会下降.
+\end{itemize}
+
+因此这条曲线展示了“找全”和“找准”之间的权衡.
+
+\subsection{评测活动}
+
+
+若干信息检索评测活动:
+
+\begin{itemize}
+\item TREC: 美国, 1992 年至今每年举办.
+\item NTCIR: 日本, 1997 年至今每年举办.
+\item 863 评测竞赛: 中国, 2005 年举办过.
+\end{itemize}
+
+其中 TREC(The Text REtrieval Conference)由美国 NIST 和 DARPA 联合举办,
+可以看作信息检索研究领域的重要公共评测平台.
+
+TREC 的运行方式大致是:
+
+\begin{itemize}
+\item 年初确定任务.
+\item 参加者报名.
+\item 参加者运行系统并提交结果.
+\item 组织方评估结果.
+\item 年末召开会议交流.
+\end{itemize}
+
+早期 TREC 主要面向文本检索,
+后来逐渐扩展到语音、图像、视频、问答、跨语言检索、过滤、Web 检索等任务.
+
+公共评测的意义在于:
+
+\begin{itemize}
+\item 提供统一数据集.
+\item 提供统一评价指标.
+\item 让不同系统能够公平比较.
+\item 推动领域内可复现研究.
+\end{itemize}
+
+\section{问答系统概述}
+
+
+\subsection{问答系统与对话系统}
+
+
+特别提醒: 问答系统和对话系统不是同一个概念.
+
+\begin{itemize}
+\item 对话系统旨在模拟人与人之间的交流.
+\item 问答系统旨在提供更自然、更友好的信息检索工具.
+\end{itemize}
+
+问答系统更强调客观答案及其依据.
+对话系统则可以包含闲聊、主观表达、情绪回应和更开放的交互.
+
+\subsection{定义}
+
+
+问答系统(question answering system, QA system)可以定义为:
+
+允许用户以自然语言方式询问,
+系统能从大量异构数据中查找并总结出用户问题答案的新型信息检索系统.
+
+例如:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+世界上最大的宫殿是什么宫殿?
+\end{Verbatim}
+
+系统应返回:
+
+\begin{Verbatim}[breaklines=true,breakanywhere=true,fontsize=\small]
+紫禁城/故宫
+\end{Verbatim}
+
+与普通信息检索不同, 问答系统通常不满足于返回一组文档链接,
+而是希望直接返回答案, 并最好给出证据来源.
+
+\subsection{问答系统类型}
+
+
+几类典型问答系统.
+
+\begin{enumerate}
+\item[1.] 基于大规模真实文本的问答系统
+\end{enumerate}
+
+这类系统从预先建立的大规模真实文本语料库中找答案.
+优点是数据相对可控, 证据来源明确.
+不足是覆盖度受语料库范围限制.
+
+\begin{enumerate}
+\item[2.] 基于 Web 的问答系统
+\end{enumerate}
+
+这类系统从网络中寻找答案.
+它的覆盖度更高, 能利用最新网页信息.
+但网络内容质量参差不齐, 噪声和可信度问题更突出.
+
+社区问答系统也可以看成 Web 问答的一种发展形式.
+它利用用户积累的问题和答案, 但答案质量同样需要筛选.
+
+\begin{enumerate}
+\item[3.] 基于知识库的问答系统
+\end{enumerate}
+
+这类系统从预先构建的结构化知识库中找答案.
+优点是可以进行推理, 答案结构清晰.
+难点在于知识库构建和维护成本高, 覆盖范围有限.
+
+\begin{enumerate}
+\item[4.] 基于语言模型的理解式问答系统
+\end{enumerate}
+
+这类系统以语言模型为底层基础,
+通过大量“问题-答案”学习和上下文理解生成答案.
+它具有较强泛化能力, 技术上也更复杂.
+
+现代问答系统通常会把检索和生成结合起来:
+先从文档、网页或知识库中检索相关证据, 再由模型抽取、归纳或生成答案.
+
+\subsection{系统基本框架}
+
+
+一个典型问答系统包括:
+
+\begin{itemize}
+\item 用户端.
+\item 自然语言问句.
+\item 问句分析.
+\item 查询与推理.
+\item 语料库、网络或知识库.
+\item 文本、段落或概念集合.
+\item 答案抽取.
+\item 最终答案.
+\end{itemize}
+
+其中问句分析要识别:
+
+\begin{itemize}
+\item 查询项.
+\item 答案类型.
+\item 问题意图.
+\end{itemize}
+
+例如“谁”“什么时候”“在哪里”“多少”等问题词,
+可以帮助系统判断答案类型是人物、时间、地点还是数量.
+
+查询与推理负责从数据源中定位候选证据,
+答案抽取负责从候选证据中找出最可能的短答案或生成最终回答.
+
+\subsection{QA 系统评测}
+
+
+TREC 竞赛 QA 任务中常见指标包括:
+
+\begin{enumerate}
+\item[1.] MRR
+\end{enumerate}
+
+MRR(mean reciprocal rank)关注第一个正确答案出现的位置:
+\[
+\operatorname{MRR} = 1/N \sum_{i=1}^N 1/\operatorname{rank}_i
+\]
+其中$\operatorname{rank}_i$表示第$i$个问题的第一个正确答案排名.
+如果某问题没有正确答案, 该项通常记为$0$.
+
+MRR 越高, 说明系统越能把正确答案排在前面.
+
+\begin{enumerate}
+\item[2.] CWS
+\end{enumerate}
+
+CWS(confidence weighted score)考虑系统对答案的把握程度.
+计算前, 系统应按答案置信度从高到低对问题排序.
+它强调系统不仅要答对, 还要知道自己什么时候更有把握.
+
+\begin{enumerate}
+\item[3.] Accuracy
+\end{enumerate}
+
+准确率定义为:
+\[
+\operatorname{Accuracy}
+  = (\text{答案正确的问题数}) / (\text{全部问题数})
+\]
+
+Accuracy 简单直观, 但忽略了答案排序和系统置信度.
+
+\section{本章小结}
+
+
+本章主线可以概括为:
+
+\begin{enumerate}
+\item[1.] 信息检索要解决的是从大规模文本集合中找出满足用户信息需求的资料.
+\item[2.] 一个基本检索系统通常包括文本预处理、文本标引、相关度评估和排序返回.
+\item[3.] 布尔模型强调规则匹配, 简单高效, 但缺少部分匹配和排序能力.
+\item[4.] 向量空间模型把文档和查询表示为词项权重向量, 可用余弦相似度排序.
+\item[5.] 基于语言模型的检索把查询看作由文档语言模型生成的样本, 按生成概率排序.
+\item[6.] 概率模型直接估计文档与查询相关的概率.
+\item[7.] LSI 通过 SVD 分解词项-文档矩阵, 引入潜在语义维度, 缓解同义词和多义词问题.
+\item[8.] 检索系统评测关注排序结果质量, 常用\texttt{P@N}、R-Precision、Precision-Recall 曲线等指标.
+\item[9.] 问答系统可以看作信息检索的进一步发展, 目标是直接返回自然语言问题的答案.
+\end{enumerate}
+
+因此, 信息检索可以看成 NLP 中连接“文本资源”和“用户需求”的关键技术.
+它既依赖语言处理, 也依赖统计建模、线性代数、概率推断和系统工程.
