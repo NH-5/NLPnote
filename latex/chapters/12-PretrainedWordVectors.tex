@@ -1,0 +1,330 @@
+\chapter{预训练词向量}
+
+\section{预训练词向量与文本表示}
+
+文本表示（text representation）是把人类自然语言转化为计算机能够处理的数字形式，例如向量、矩阵或张量。它是原始文本和 NLP 模型之间的桥梁。
+
+从任务角度看，文本表示至少包含两个层次：
+\begin{itemize}
+  \item 词语表示（word representation）：对单个词语进行向量化表示，是文本表示的基础单元。
+  \item 整文表示（text representation）：对句子、段落或文档进行向量化表示，通常建立在词语表示之上。
+\end{itemize}
+
+高质量的文本表示会直接影响分类、翻译、问答、生成等任务的性能上限。如果表示只保留词表编号，模型很难捕捉语义相似性；如果表示能编码语义、语法和上下文信息，后续模型才有更好的学习基础。
+
+\subsection{NLP 技术范式与词表示}
+
+NLP 技术的发展可以粗略理解为从符号规则、统计学习、深度学习到大规模预训练模型的演进。
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{0.22\textwidth}|p{0.18\textwidth}|p{0.48\textwidth}|}
+\hline
+阶段 & 典型时期 & 词表示特点 \\ \hline
+小规模专家系统 & 1950--1990 & 词典、规则和离散语言符号 \\ \hline
+语料库统计模型 & 1990--2010 & 高维稀疏向量，依赖人工特征和统计机器学习 \\ \hline
+深度学习模型 & 2010--2017 & 低维稠密词向量，神经网络自动学习特征 \\ \hline
+大规模预训练模型 & 2018 至今 & 预训练加微调，上下文相关的深层表示 \\ \hline
+\end{tabular}
+\caption{NLP 技术范式与词表示方式的变化}
+\end{table}
+
+例如情感分类中，早期专家系统可能依赖“好”“喜欢”等褒义词表和“不”等否定规则。统计学习阶段会把“土豆”“马铃薯”“好”“吃”等词转成离散稀疏特征。深度学习阶段则把词映射为低维稠密向量，使“土豆”和“马铃薯”在向量空间中更接近。
+
+进一步地，预训练范式通常包含两步：
+\begin{enumerate}
+  \item 预训练（pre-train）：在大规模未标注语料上学习通用语言知识。
+  \item 微调（fine-tune）：在具体下游任务数据上继续训练，适配任务目标。
+\end{enumerate}
+
+这种“预训练 + 微调”的范式，使不同任务可以共享同一套底层语言表示。
+
+\subsection{词表示的发展脉络}
+
+词表示方法大致经历了以下路径：
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|c|p{0.28\textwidth}|p{0.34\textwidth}|}
+\hline
+时期 & 代表模型 & 表示类型 \\ \hline
+1957 & \texttt{One-hot} & 离散表示 \\ \hline
+1990 & \texttt{LSA} & 分布表示 \\ \hline
+1996 & \texttt{HAL} & 分布表示 \\ \hline
+2003 & \texttt{NNLM} & 神经网络词嵌入 \\ \hline
+2010 & \texttt{RNNLM} & 神经网络词嵌入 \\ \hline
+2013 & \texttt{Word2Vec} & 预训练静态词向量 \\ \hline
+2014 & \texttt{GloVe} & 预训练静态词向量 \\ \hline
+2018 & \texttt{ELMo} & 预训练动态词向量 \\ \hline
+2019 前后 & \texttt{BERT}、\texttt{GPT} & 上下文预训练语言模型 \\ \hline
+\end{tabular}
+\caption{词表示方法的典型发展脉络}
+\end{table}
+
+其中，\texttt{Word2Vec} 和 \texttt{GloVe} 代表静态词向量阶段；\texttt{ELMo}、\texttt{BERT}、\texttt{GPT} 则代表上下文相关表示的发展方向。
+
+\section{传统词表示模型}
+
+\subsection{One-hot 模型}
+
+\texttt{One-hot} 模型给词表中的每个词分配一个唯一索引，并把该词表示为一个只有对应索引位置为 1、其余位置全为 0 的向量。
+
+例如词表为：
+\begin{Verbatim}[breaklines=true]
+V = {苹果, 香蕉, 橙子}
+\end{Verbatim}
+
+则可以表示为：
+\begin{Verbatim}[breaklines=true]
+苹果 -> [1, 0, 0]
+香蕉 -> [0, 1, 0]
+橙子 -> [0, 0, 1]
+\end{Verbatim}
+
+这种表示结构简单、容易实现，但有明显缺陷：
+\begin{itemize}
+  \item 维度灾难：词表越大，向量维度越高。
+  \item 稀疏性严重：每个向量只有一个位置非零，存储和计算效率低。
+  \item 语义鸿沟：任意两个不同词的向量都正交，不能表达语义相似性。
+  \item 泛化能力弱：无法利用“苹果”和“香蕉”都属于水果这一类语义关系。
+\end{itemize}
+
+因此，\texttt{One-hot} 适合作为离散编号或简单基线，但不是一种有效的语义表示。
+
+\subsection{分布表示与分布语义假设}
+
+分布表示（distributional representation）基于分布语义假设：
+\begin{Verbatim}[breaklines=true]
+You shall know a word by the company it keeps.
+\end{Verbatim}
+
+也就是说，一个词的含义可以由它经常出现的上下文来刻画。如果两个词出现在相似上下文中，它们的语义往往也相似。例如“猫”和“狗”都常与“宠物”“动物”“喂养”等词共现，因此模型应当认为二者语义相关。
+
+最直接的做法是构建词-上下文共现矩阵。矩阵中的每一行对应一个目标词，每一列对应一个上下文词，元素表示二者在滑动窗口内的共现强度。这种表示能从原始语料中自动获得语义线索，但原始共现矩阵仍通常具有高维、稀疏、噪声较多的问题。
+
+\subsection{LSA 模型}
+
+\texttt{LSA}（latent semantic analysis，潜在语义分析）试图通过降维缓解稀疏性，并捕捉更高阶的共现关系。
+
+它从词项-文档矩阵 $C$ 出发，进行奇异值分解：
+\[
+  C = U\Sigma V^T.
+\]
+
+其中：
+\begin{itemize}
+  \item $C$：原始词项-文档矩阵。
+  \item $U$：词项在潜在语义维度上的表示。
+  \item $\Sigma$：奇异值矩阵，表示各潜在维度的重要性。
+  \item $V^T$：文档在潜在语义维度上的表示。
+\end{itemize}
+
+截断保留较大的奇异值后，可以得到低维潜在语义空间。这样既能压缩表示维度，又能在一定程度上把表面不同但主题相关的词联系起来。
+
+\subsection{HAL 模型}
+
+\texttt{HAL}（hyperspace analogue to language）同样基于分布假说，但更强调词-词共现和滑动窗口。
+
+它的基本过程是：
+\begin{enumerate}
+  \item 用固定大小的滑动窗口扫描语料。
+  \item 对窗口内的中心词和上下文词累加共现权重。
+  \item 权重可按距离衰减，距离越近贡献越大。
+  \item 得到一个高维加权词-词共现矩阵。
+\end{enumerate}
+
+\texttt{HAL} 的优点是无需人工标注，原理直观，能直接利用词语共现信息。缺点是向量维度仍然很高，稀疏性明显，且简单线性距离加权的语义表达能力有限。
+
+\section{预训练静态词向量}
+
+\subsection{词嵌入与分布式表示}
+
+为了克服高维稀疏表示的问题，神经网络方法直接学习低维、稠密、连续的词向量。这种表示常称为词嵌入（word embedding），也称分布式表示（distributed representation）。
+
+词嵌入的核心特点是：
+\begin{itemize}
+  \item 每个词对应一个 $d$ 维实数向量，其中 $d$ 通常远小于词表大小。
+  \item 向量的每个维度不再对应一个人工定义的词项，而是由训练过程自动学习。
+  \item 语义或句法相似的词，往往在向量空间中距离更近。
+\end{itemize}
+
+静态词向量（static word embedding）指一个词只有一个固定向量。例如“苹果”无论出现在“吃苹果”还是“苹果公司”中，向量都相同。这使它训练和使用都很高效，但也导致一词多义无法被准确区分。
+
+\subsection{基于神经网络语言模型的词向量}
+
+早期神经网络语言模型已经包含词向量学习机制。在前馈神经网络语言模型（FF-NNLM）中，模型根据前 $n-1$ 个词预测当前词，输入词先通过查找表（look-up table）转换为低维向量。
+
+这个查找表本质上就是词向量矩阵 $E$。训练语言模型时，梯度下降不仅更新神经网络参数，也同步更新 $E$。因此，词向量可以看作神经网络语言模型训练的副产品。
+
+FF-NNLM 的限制是历史窗口长度固定。循环神经网络语言模型（RNNLM）进一步用循环状态建模不定长历史：
+\begin{itemize}
+  \item 能根据完整历史预测当前词。
+  \item 词向量矩阵仍在语言模型训练中同步优化。
+  \item 可以处理可变长度上下文。
+\end{itemize}
+
+但 RNNLM 也有局限：它主要利用历史信息，且传统 RNN 容易出现梯度消失或爆炸，实际训练中常需要截断反向传播，后续又引入 LSTM 等结构缓解长距离依赖问题。
+
+\subsection{Word2Vec}
+
+\texttt{Word2Vec} 是经典的预训练静态词向量模型。它不再完整训练一个复杂语言模型，而是围绕局部上下文设计更轻量的预测任务，从而能在大规模语料上高效学习词向量。
+
+\texttt{Word2Vec} 主要包含两种模型：
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{0.20\textwidth}|p{0.27\textwidth}|p{0.40\textwidth}|}
+\hline
+模型 & 预测方向 & 直观理解 \\ \hline
+\texttt{CBOW} & 用上下文预测中心词 & 把窗口内上下文词向量平均后预测中间词 \\ \hline
+\texttt{Skip-gram} & 用中心词预测上下文 & 给定中间词，分别预测周围词 \\ \hline
+\end{tabular}
+\caption{\texttt{Word2Vec} 中 \texttt{CBOW} 与 \texttt{Skip-gram} 的区别}
+\end{table}
+
+\texttt{CBOW} 适合快速训练，常在高频词上效果稳定。\texttt{Skip-gram} 对低频词更友好，因为每个中心词会产生多个上下文预测样本。
+
+如果直接用 \texttt{softmax} 对整个词表归一化，目标词概率可以写成：
+\[
+  P(w_o \mid w_c)
+  =
+  \frac{\exp(u_{w_o}^T v_{w_c})}
+       {\sum_{w \in V} \exp(u_w^T v_{w_c})}.
+\]
+
+其中 $w_c$ 为中心词或上下文表示，$w_o$ 为目标词，$V$ 为词表。当词表很大时，分母需要遍历所有词，计算代价很高。
+
+\subsection{负采样}
+
+负采样（negative sampling）是 \texttt{Word2Vec} 的重要加速方法。它把“从整个词表中预测目标词”的多分类问题，改写为“判断词和上下文是否真实共现”的二分类问题。
+
+基本思想是：
+\begin{itemize}
+  \item 真实语料中的“词-上下文”对作为正例。
+  \item 通过替换词构造若干不共现的负例。
+  \item 每次只比较少量负例，不再对整个词表做完整归一化。
+\end{itemize}
+
+对一个正例 $(w,c)$ 和 $k$ 个负例 $n_1,\dots,n_k$，可把目标写成：
+\[
+  \log \operatorname{sigmoid}(u_w^T v_c)
+  + \sum_{i=1}^k \log \operatorname{sigmoid}(-u_{n_i}^T v_c).
+\]
+
+这样计算复杂度从依赖整个词表大小，转为依赖少量负样本数 $k$，因而更适合大规模语料训练。
+
+\subsection{GloVe}
+
+\texttt{GloVe}（global vectors for word representation）也是经典静态词向量模型。它的思想是结合全局词频统计和局部上下文窗口的优势。
+
+和 \texttt{Word2Vec} 相比：
+\begin{itemize}
+  \item \texttt{Word2Vec} 主要在训练样本中利用局部共现信息。
+  \item \texttt{GloVe} 先统计全局词-上下文共现矩阵，再学习低维词向量。
+\end{itemize}
+
+\texttt{GloVe} 通过回归目标预测词对共现强度，本质上可以理解为一种隐式矩阵分解。它会构建共现矩阵 $X$，其中 $X_{ij}$ 表示词 $i$ 和上下文词 $j$ 的共现强度，并使词向量内积能够解释 $\log X_{ij}$。
+
+常见目标形式可概括为：
+\[
+  J = \sum_{i,j} f(X_{ij})
+  \left(w_i^T \tilde{w}_j + b_i + \tilde{b}_j - \log X_{ij}\right)^2.
+\]
+
+其中 $f(X_{ij})$ 是样本权重函数，用于降低极高频或极低频共现项对训练的负面影响。
+
+\subsection{词向量评价}
+
+词向量评价通常分为内部评价和外部评价。
+
+内部评价直接考察词向量本身是否具有合理语义结构：
+\begin{itemize}
+  \item 词义相似度计算：比较词向量相似度和人工相似度评分是否一致。
+  \item 词类比关系计算：检查向量关系是否能表达类比，如“国王 - 男人 + 女人 $\approx$ 女王”。
+\end{itemize}
+
+外部评价则把词向量放入下游任务中：
+\begin{itemize}
+  \item 文本分类、序列标注、问答等 NLP 任务。
+  \item 知识图谱补全、推荐系统等需要语义表示的任务。
+\end{itemize}
+
+内部评价便于快速诊断表示质量，外部评价更能反映词向量在真实系统中的任务价值。
+
+\section{预训练动态词向量}
+
+\subsection{静态词向量的问题}
+
+静态词向量的核心假设是“一词一向量”。这在很多简单任务中有效，但无法处理一词多义。
+
+例如“土豆”在不同语境中可能指：
+\begin{Verbatim}[breaklines=true]
+我喜欢吃土豆。
+我刚刚在土豆看视频。
+\end{Verbatim}
+
+第一句中的“土豆”更接近“马铃薯”；第二句中的“土豆”则更接近视频平台名称。如果二者共享同一个向量，模型就很难区分具体语义。
+
+\subsection{动态词向量的思想}
+
+动态词向量（contextualized word embedding）认为：词向量应当随上下文变化而变化。因此，同一个词在不同句子中可以得到不同向量。这种表示不再只依赖词本身，而是由词和所在上下文共同决定。
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{0.20\textwidth}|p{0.32\textwidth}|p{0.32\textwidth}|}
+\hline
+维度 & 静态词向量 & 动态词向量 \\ \hline
+核心假设 & 一词一向量 & 一词多向量，向量由上下文决定 \\ \hline
+代表模型 & \texttt{Word2Vec}、\texttt{GloVe} & \texttt{ELMo}、\texttt{BERT} \\ \hline
+优势 & 轻量、高效、易部署 & 能处理一词多义，上下文感知能力强 \\ \hline
+局限 & 无法区分具体语境中的词义 & 模型更大，训练和推理成本更高 \\ \hline
+\end{tabular}
+\caption{静态词向量与动态词向量的核心差异}
+\end{table}
+
+\subsection{ELMo}
+
+\texttt{ELMo}（embeddings from language models）是典型的动态词向量模型。它利用两个 LSTM 网络分别训练前向语言模型和后向语言模型，从而让词表示同时包含左侧和右侧上下文信息。
+
+\texttt{ELMo} 的主要特点包括：
+\begin{itemize}
+  \item 动态：词向量由当前句子上下文决定。
+  \item 鲁棒：使用字符级输入，对未登录词更有适应能力。
+  \item 层次：不同网络层编码不同层次的信息，下游任务可按需组合。
+\end{itemize}
+
+训练好双向 LSTM 后，输入一个新句子，每个词可以得到多层表示：
+\begin{enumerate}
+  \item 最底层是词或字符组合得到的基础 embedding。
+  \item 第一层双向 LSTM 输出通常包含更多句法信息。
+  \item 更高层双向 LSTM 输出通常包含更多语义信息。
+\end{enumerate}
+
+最终的 \texttt{ELMo} 表示常用各层向量的加权平均得到：
+\[
+  \operatorname{ELMo}_k = \gamma \sum_{j=0}^L s_j h_{k,j}.
+\]
+
+其中 $h_{k,j}$ 表示第 $k$ 个词在第 $j$ 层的向量，$s_j$ 是可学习的层权重，$\gamma$ 是缩放系数。这种机制为不同下游任务提供了更大的组合自由度。
+
+\subsection{从静态词向量到动态词向量}
+
+从 \texttt{Word2Vec}、\texttt{GloVe} 到 \texttt{ELMo} 的变化，本质上是词表示从固定词典式释义走向上下文语境化理解。
+
+静态词向量适合轻量、快速的基础任务，在需要高效率或训练数据较少的系统中仍有价值。动态词向量更适合复杂语义理解任务，尤其是词义消歧、阅读理解、信息抽取等对上下文敏感的场景。
+
+\section{小结}
+
+本章主线可以概括为：
+\begin{enumerate}
+  \item 文本表示是自然语言文本进入 NLP 模型前的数字化桥梁。
+  \item \texttt{One-hot} 表示简单但高维稀疏，无法表达语义相似性。
+  \item \texttt{LSA} 和 \texttt{HAL} 利用分布假说和共现统计表达词义。
+  \item \texttt{Word2Vec} 和 \texttt{GloVe} 代表高效的预训练静态词向量。
+  \item 静态词向量轻量高效，但难以处理一词多义。
+  \item \texttt{ELMo} 等动态词向量能结合上下文生成不同表示，更适合复杂语义理解任务。
+\end{enumerate}

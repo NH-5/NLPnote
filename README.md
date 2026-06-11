@@ -14,6 +14,9 @@
 - `08-InformationRetrieval.typ`: 信息检索
 - `09-LexicalAnalysis.typ`: 词法分析
 - `10-SyntaxAnalysis.typ`: 句法分析
+- `11-SemanticAnalysis.typ`: 语义分析
+- `12-PretrainedWordVectors.typ`: 预训练词向量
+- `13-Exercises.typ`: 课后题与答案
 - `note.typ`: 总入口文件
 - `template/`: Typst 模板资源
 - `latex/`: LaTeX 版本源码
