@@ -1,8 +1,10 @@
 # 输出的笔记
+.vscode/
 note.pdf
 *.synctex.gz
 *.aux
 *.bbl
+*.blg
 *.bcf
 *.fls
 *.fdb_latexmk
@@ -10,3 +12,4 @@ note.pdf
 *.out
 *.run.xml
 *.toc
+*.xdv
