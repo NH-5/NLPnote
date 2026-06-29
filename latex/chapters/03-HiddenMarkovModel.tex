@@ -531,6 +531,131 @@ i_t^* = \psi_{t+1}(i_{t+1}^*), \quad t = T-1, T-2, \dots, 1
 与前向算法不同, 维特比算法在每一步保留的不是“所有路径概率之和”, 而是“到达该状态的最大路径概率”.
 这正是动态规划思想在最优路径搜索中的应用.
 
+我们仍然用前文那个模型举例说明计算过程.
+假设我们观测到序列: $(\text{红}, \text{白}, \text{红}, \text{白})$.
+
+\providecommand{\viterbimax}[1]{\textcolor{red!70!black}{\mathbf{#1}}}
+
+状态顺序仍记为$(s_1, s_2, s_3)$.
+这里维特比算法最大化的是$P(I, O | \lambda)$, 由于$P(O | \lambda)$对所有候选路径相同, 它也等价于最大化$P(I | O, \lambda)$.
+下面矩阵中红色加粗的数字表示该行取到的最大值.
+
+\begin{enumerate}
+\item[1.] 初始化
+\end{enumerate}
+\[
+\delta_1 = \operatorname{diag}(\pi) b(\text{红})
+    =
+    \begin{bmatrix}0.2 & 0 & 0 \\ 0 & 0.4 & 0 \\ 0 & 0 & 0.4\end{bmatrix}
+    \begin{bmatrix}0.5 \\ 0.4 \\ 0.7\end{bmatrix}
+    = \begin{bmatrix}0.10 \\ 0.16 \\ 0.28\end{bmatrix}
+\]
+\[
+\psi_1 = \begin{bmatrix}0 \\ 0 \\ 0\end{bmatrix}
+\]
+
+\begin{enumerate}
+\item[2.] 递推到$t=2$, 观测为白球
+\end{enumerate}
+\[
+A^T \operatorname{diag}(\delta_1)
+    =
+    \begin{bmatrix}
+    0.050 & 0.048 & \viterbimax{0.056} \\
+    0.020 & 0.080 & \viterbimax{0.084} \\
+    0.030 & 0.032 & \viterbimax{0.140}
+    \end{bmatrix}
+\]
+按行取最大值得到:
+\[
+\operatorname{rowmax}[A^T \operatorname{diag}(\delta_1)]
+    = \begin{bmatrix}\viterbimax{0.056} \\ \viterbimax{0.084} \\ \viterbimax{0.140}\end{bmatrix}
+\]
+\[
+\psi_2 = \begin{bmatrix}3 \\ 3 \\ 3\end{bmatrix}
+\]
+再乘以当前观测的发射概率:
+\[
+\delta_2
+    = \operatorname{diag}[b(\text{白})] \begin{bmatrix}0.056 \\ 0.084 \\ 0.140\end{bmatrix}
+    = \begin{bmatrix}0.0280 \\ 0.0504 \\ 0.0420\end{bmatrix}
+\]
+
+\begin{enumerate}
+\item[3.] 递推到$t=3$, 观测为红球
+\end{enumerate}
+\[
+A^T \operatorname{diag}(\delta_2)
+    =
+    \begin{bmatrix}
+    0.01400 & \viterbimax{0.01512} & 0.00840 \\
+    0.00560 & \viterbimax{0.02520} & 0.01260 \\
+    0.00840 & 0.01008 & \viterbimax{0.02100}
+    \end{bmatrix}
+\]
+\[
+\operatorname{rowmax}[A^T \operatorname{diag}(\delta_2)]
+    = \begin{bmatrix}\viterbimax{0.01512} \\ \viterbimax{0.02520} \\ \viterbimax{0.02100}\end{bmatrix}
+\]
+\[
+\psi_3 = \begin{bmatrix}2 \\ 2 \\ 3\end{bmatrix}
+\]
+\[
+\delta_3
+    = \operatorname{diag}[b(\text{红})] \begin{bmatrix}0.01512 \\ 0.02520 \\ 0.02100\end{bmatrix}
+    = \begin{bmatrix}0.007560 \\ 0.010080 \\ 0.014700\end{bmatrix}
+\]
+
+\begin{enumerate}
+\item[4.] 递推到$t=4$, 观测为白球
+\end{enumerate}
+\[
+A^T \operatorname{diag}(\delta_3)
+    =
+    \begin{bmatrix}
+    \viterbimax{0.0037800} & 0.0030240 & 0.0029400 \\
+    0.0015120 & \viterbimax{0.0050400} & 0.0044100 \\
+    0.0022680 & 0.0020160 & \viterbimax{0.0073500}
+    \end{bmatrix}
+\]
+\[
+\operatorname{rowmax}[A^T \operatorname{diag}(\delta_3)]
+    = \begin{bmatrix}\viterbimax{0.0037800} \\ \viterbimax{0.0050400} \\ \viterbimax{0.0073500}\end{bmatrix}
+\]
+\[
+\psi_4 = \begin{bmatrix}1 \\ 2 \\ 3\end{bmatrix}
+\]
+\[
+\delta_4
+    = \operatorname{diag}[b(\text{白})] \begin{bmatrix}0.0037800 \\ 0.0050400 \\ 0.0073500\end{bmatrix}
+    = \begin{bmatrix}0.00189000 \\ 0.00302400 \\ 0.00220500\end{bmatrix}
+\]
+
+\begin{enumerate}
+\item[5.] 终止与回溯
+\end{enumerate}
+\[
+P^* = \max_i \delta_4(i) = 0.003024, \quad i_4^* = 2
+\]
+根据回溯指针:
+\[
+i_3^* = \psi_4(2) = 2, \quad
+i_2^* = \psi_3(2) = 2, \quad
+i_1^* = \psi_2(2) = 3
+\]
+因此最可能的隐藏状态序列为:
+\[
+I^* = (s_3, s_2, s_2, s_2)
+\]
+对应的路径概率为:
+\[
+\pi_3 b_3(\text{红}) a_{3 2} b_2(\text{白}) a_{2 2} b_2(\text{红}) a_{2 2} b_2(\text{白})
+\]
+\[
+= 0.4 \times 0.7 \times 0.3 \times 0.6 \times 0.5 \times 0.4 \times 0.5 \times 0.6
+  = 0.003024
+\]
+
 \subsection{学习问题}
 
 
