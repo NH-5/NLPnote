@@ -13,3 +13,5 @@ note.pdf
 *.run.xml
 *.toc
 *.xdv
+
+.DS_Store
